@@ -227,6 +227,7 @@ erDiagram
 - 성남시 수수료는 출처(조례 별표 PDF → `scripts/extract_seongnam_pdf.py` → `data/processed/seongnam_fees.csv`)에서 적재하며, `check_status`가 검수 완료인 행만 대상으로 합니다. PDF 추출 결과는 `check_status`로 검수 상태를 관리합니다.
 - 성남시 별표의 "기타품목"·유사 품목 규칙은 품목 행이 아니라 `procedure_chunks`의 규칙 청크로 적재하고, 매칭 단계에서 자동 단가 연결에 쓰지 않습니다.
 - 같은 품목명에 규격이 여러 개면 각각 별도 행으로 유지합니다.
+- 글자 사이를 띄운 표기("냉 장 고", "T V")는 붙여서 저장합니다(2026-11-13 전국 데이터에서 455건 확인). `item_catalog.search_text`는 품목명+규격을 **공백 없이** 이어 붙인 정규화 문자열이며, 검색어도 같은 방식으로 공백을 제거해 비교합니다.
 
 ---
 

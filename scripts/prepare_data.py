@@ -13,12 +13,15 @@
 """
 import argparse
 import csv
+import json
 import re
 import sys
 from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+SYNONYMS = {k: v for k, v in json.loads((ROOT / "data" / "synonyms.json").read_text(encoding="utf-8")).items() if not k.startswith("_")}
 SPEC_MISSING = "규격 미기재"
 SEONGNAM_CODE = "3780000"  # 행정기관코드 추정값 [검증 필요]
 SEONGNAM_NAME = "경기도 성남시"
@@ -39,6 +42,27 @@ def read_csv(path):
 
 def clean(text):
     return re.sub(r"\s+", " ", (text or "")).strip()
+
+
+TIDIED = {"count": 0}
+
+
+def tidy(text):
+    """글자 사이를 한 칸씩 띄운 표기("냉 장 고", "T V")만 붙인다. 그 외 표기는 그대로 둔다."""
+    t = clean(text)
+    parts = t.split(" ")
+    if len(parts) >= 2 and all(len(p) == 1 for p in parts):
+        TIDIED["count"] += 1
+        return "".join(parts)
+    return t
+
+
+def canonical(text):
+    """공백 제거·소문자 후 동의어 사전(data/synonyms.json)을 적용한다."""
+    t = re.sub(r"\s+", "", clean(text)).lower()
+    for variant in sorted(SYNONYMS, key=len, reverse=True):
+        t = t.replace(variant, SYNONYMS[variant])
+    return t
 
 
 def norm_key(text):
@@ -66,7 +90,7 @@ def main():
     # 1) 전국 표준데이터
     for r in read_csv(a.national):
         fee = to_int(r.get("수수료"))
-        name = clean(r.get("대형폐기물명"))
+        name = tidy(r.get("대형폐기물명"))
         if fee is None or not name:
             skipped["수수료 또는 품목명 없음"] += 1
             continue
@@ -74,7 +98,7 @@ def main():
         items.append({
             "code": clean(r["제공기관코드"]), "inst": clean(r["제공기관명"]),
             "category": clean(r.get("대형폐기물구분명")), "item_name": name,
-            "spec": clean(r.get("대형폐기물규격")) or SPEC_MISSING,
+            "spec": tidy(r.get("대형폐기물규격")) or SPEC_MISSING,
             "spec_blank": not clean(r.get("대형폐기물규격")),
             "fee_won": fee, "fee_type": "free" if free else "paid",
             "source": "전국대형폐기물수거수수료정보표준데이터",
@@ -121,7 +145,7 @@ def main():
         if key not in catalog:
             catalog[key] = {"id": len(catalog) + 1, "name": it["item_name"], "spec": it["spec"],
                             "name_norm": key[0], "spec_norm": key[1],
-                            "search_text": clean(it["item_name"] + " " + ("" if it["spec"] == SPEC_MISSING else it["spec"]))}
+                            "search_text": canonical(it["item_name"]) + ("" if it["spec"] == SPEC_MISSING else canonical(it["spec"]))}  # 공백 없는 정규화 문자열
         it["catalog_id"] = catalog[key]["id"]
 
     # 5) 지자체
@@ -167,6 +191,7 @@ def main():
         f"- 완전 중복 제거: {exact_dup}행",
         f"- 단가가 다른 중복(품목·규격 동일, 보존): {conflicts}건",
         f"- 제외 행: {dict(skipped) or '없음'}",
+        f"- 글자 사이 공백 표기를 붙인 값(예: \"냉 장 고\" -> \"냉장고\"): {TIDIED['count']}건",
         f"- 적재 행(waste_items): {len(unique)} / 지자체 {len(muni)}곳 / 카탈로그 {len(catalog)}건",
         f"- fee_type 분포: {dict(types)}",
         f"- 규격 전부 빈칸 지자체(경고 표시 대상): {len(blank_all)}곳",
