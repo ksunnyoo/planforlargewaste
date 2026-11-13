@@ -1,7 +1,7 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import items, municipalities
+from app.api.v1 import estimates, items, municipalities
 from app.core.config import settings
 from app.core.database import db_is_up
 from app.core.errors import register_error_handlers
@@ -21,6 +21,7 @@ app.add_middleware(
 v1 = APIRouter(prefix="/api/v1")
 v1.include_router(municipalities.router)
 v1.include_router(items.router)
+v1.include_router(estimates.router)
 app.include_router(v1)
 
 
