@@ -88,3 +88,19 @@ def test_질의_정규화():
     from app.services.item_search import normalize_query
     assert normalize_query(" 쇼 파  3인용 ") == "소파3인용"
     assert normalize_query("TV") == "tv" and normalize_query("티비") == "tv"
+
+
+@needs_db
+def test_철자_변형_카펫_장농_런닝머신():
+    def names(code, q):
+        r = client.get("/api/v1/items/search", params={"municipality_code": code, "q": q})
+        return {i["name"] for i in r.json()["items"]}
+    assert "카펫" in names("3740000", "카페트")      # 수원: 카펫 표기
+    assert "장롱" in names(SEONGNAM, "장농")
+    assert "러닝머신" in names("3220000", "런닝머신")  # 강남: 러닝머신 표기
+
+
+@needs_db
+def test_괄호만_있는_검색어는_빈_결과():
+    r = client.get("/api/v1/items/search", params={"municipality_code": SEONGNAM, "q": "()"})
+    assert r.status_code == 200 and r.json()["items"] == []

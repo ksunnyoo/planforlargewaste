@@ -4,6 +4,7 @@
 search_text에서 하고, 표시는 지자체 원문 품목명·규격과 단가를 쓴다.
 """
 import json
+import re
 from pathlib import Path
 from typing import List
 
@@ -37,8 +38,8 @@ if _SYN_PATH.exists():
 
 
 def normalize_query(q: str) -> str:
-    """정제 스크립트의 canonical()과 같은 방식: 공백 제거, 소문자, 동의어 사전 적용."""
-    t = "".join(q.split()).lower()
+    """정제 스크립트의 canonical()과 같은 방식: 공백·괄호·구두점 제거, 소문자, 동의어 사전 적용."""
+    t = re.sub(r"[\s()\[\]·,./]+", "", q).lower()
     for variant in sorted(_SYNONYMS, key=len, reverse=True):
         t = t.replace(variant, _SYNONYMS[variant])
     return t
@@ -46,6 +47,8 @@ def normalize_query(q: str) -> str:
 
 def search_items(conn: Connection, municipality_code: str, q: str, limit: int) -> List[dict]:
     q = normalize_query(q)
+    if not q:
+        return []
     rows = conn.execute(SEARCH_SQL, {
         "q": q, "like": "%" + escape_like(q) + "%", "code": municipality_code, "limit": limit,
     }).mappings().all()

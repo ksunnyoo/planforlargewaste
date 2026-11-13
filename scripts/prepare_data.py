@@ -59,7 +59,7 @@ def tidy(text):
 
 def canonical(text):
     """공백 제거·소문자 후 동의어 사전(data/synonyms.json)을 적용한다."""
-    t = re.sub(r"\s+", "", clean(text)).lower()
+    t = re.sub(r"[\s()\[\]·,./]+", "", clean(text)).lower()
     for variant in sorted(SYNONYMS, key=len, reverse=True):
         t = t.replace(variant, SYNONYMS[variant])
     return t
