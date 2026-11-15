@@ -1,0 +1,19 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.pytest_cache/
+.DS_Store
+
+# 원본·재생성 가능한 대용량 데이터는 커밋하지 않음(이용 허락 확인 전, SDD 4절)
+data/raw/*.csv
+data/raw/*.xls
+data/raw/*.xml
+data/raw/*.json
+data/raw/*.rdf
+data/raw/*.pdf
+data/processed/item_catalog.csv
+data/processed/waste_items.csv
+data/processed/municipalities.csv

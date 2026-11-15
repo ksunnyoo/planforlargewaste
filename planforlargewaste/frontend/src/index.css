@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --color-brand: #0f766e;
+  --color-brand-dark: #115e59;
+  --color-brand-soft: #e6f4f1;
+  --color-canvas: #f8f7f4;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-line: #e5e2db;
+  --color-ok: #15803d;
+  --color-ok-soft: #e8f5ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e0;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #fcebeb;
+  --color-info: #1d4ed8;
+  --color-info-soft: #e8eefc;
+}
+
+html { background: var(--color-canvas); color: var(--color-ink); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 3px solid #0f766e; outline-offset: 2px; border-radius: 6px; }
+
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, #ece9e2 25%, #f6f4ef 50%, #ece9e2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  * { scroll-behavior: auto !important; transition: none !important; }
+}
+
+@media print {
+  @page { size: A4; margin: 16mm; }
+  html, body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+}

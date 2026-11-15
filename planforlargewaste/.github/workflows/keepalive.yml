@@ -1,0 +1,18 @@
+# Render 무료 서버가 잠들지 않도록 10분마다 /health를 호출한다.
+# GitHub의 예약 실행은 몇 분 늦어질 수 있어 완전한 보장은 아니다(첫 화면의 대기 안내가 보조 수단).
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /health
+        run: |
+          curl --fail --silent --show-error --max-time 60 --retry 2 --retry-delay 5 \
+            https://planforlargewaste.onrender.com/health
