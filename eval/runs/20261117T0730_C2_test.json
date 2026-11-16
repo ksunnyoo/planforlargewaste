@@ -1,0 +1,635 @@
+{
+  "run_id": "20261117T0730_C2_test",
+  "git_commit": "b11b83c",
+  "dataset_version": "v1",
+  "split": "test",
+  "freeze": {
+    "checked": true,
+    "frozen_ok": true,
+    "reasons": [],
+    "allow_unfrozen": false,
+    "again": false
+  },
+  "dataset_hash": {
+    "eval/datasets/v1/matching.jsonl": "d53279dfb9596fd9b9eba4574836b723392d033bfa6b0fcd194b709fdbf7b9b7",
+    "eval/datasets/v1/procedure.jsonl": "66b19d177760659abd59937e56fa9ee405da1f7f7174eaa54d5171a9bd240594"
+  },
+  "models": {
+    "llm_primary": null,
+    "llm_fallback": null,
+    "embedding": "gemini-embedding-001",
+    "judge": null
+  },
+  "config": {
+    "name": "C2",
+    "retrieval": "hybrid",
+    "top_k": 5
+  },
+  "repeat": 1,
+  "runs": [
+    {
+      "repeat_index": 0,
+      "matching_metrics": {
+        "L1_recall@1": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 17,
+          "n_cases": 19
+        },
+        "L1_recall@3": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 17,
+          "n_cases": 19
+        },
+        "L1_recall@5": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 17,
+          "n_cases": 19
+        },
+        "L1_mrr": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 17,
+          "n_cases": 19
+        },
+        "L1_ndcg@5": {
+          "value": 0.9828,
+          "ci95": [
+            0.9452,
+            1.0
+          ],
+          "n_lines": 17,
+          "n_cases": 19
+        },
+        "L1_strict_recall@1": {
+          "value": 0.8571,
+          "ci95": [
+            0.5,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 19
+        },
+        "L1_strict_recall@3": {
+          "value": 0.8571,
+          "ci95": [
+            0.5,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 19
+        },
+        "L1_strict_recall@5": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 19
+        },
+        "L1_strict_mrr": {
+          "value": 0.8929,
+          "ci95": [
+            0.625,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 19
+        },
+        "L2_top1_accuracy(expected matched lines)": {
+          "value": 0.1667,
+          "ci95": [
+            0.0,
+            0.5
+          ],
+          "n_lines": 6,
+          "n_cases": 19
+        },
+        "L2_quantity_accuracy": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 19,
+          "n_cases": 19
+        },
+        "L2_wrong_matched_rate(of matched outputs)": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n_lines": 1,
+          "n_cases": 19
+        },
+        "L2_status_confusion(expected->actual)": {
+          "matched": {
+            "ambiguous": 5,
+            "matched": 1
+          },
+          "ambiguous": {
+            "ambiguous": 11
+          },
+          "unmatched": {
+            "ambiguous": 2
+          }
+        },
+        "line_count_mismatch_cases": 0,
+        "degraded_cases": 18,
+        "latency_ms": {
+          "p50": 896,
+          "p95": 1012
+        },
+        "by_category": {
+          "colloquial": {
+            "lines": 5,
+            "status_match": 0.2,
+            "quantity_match": 1.0
+          },
+          "typo_spacing": {
+            "lines": 2,
+            "status_match": 1.0,
+            "quantity_match": 1.0
+          },
+          "quantity": {
+            "lines": 3,
+            "status_match": 1.0,
+            "quantity_match": 1.0
+          },
+          "multi_spec": {
+            "lines": 3,
+            "status_match": 1.0,
+            "quantity_match": 1.0
+          },
+          "other_muni": {
+            "lines": 2,
+            "status_match": 0.5,
+            "quantity_match": 1.0
+          },
+          "vague_unmatched": {
+            "lines": 4,
+            "status_match": 0.5,
+            "quantity_match": 1.0
+          }
+        }
+      },
+      "matching_cases": [
+        {
+          "case_id": "m-003",
+          "category": "colloquial",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "쇼파|2～3인용(개당)",
+                "의자|보조의자(2～3인용)",
+                "쇼파|대형 4인이상(개당)"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 1692
+        },
+        {
+          "case_id": "m-006",
+          "category": "colloquial",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "TV|48.26㎝ 미만",
+                "TV|48.26㎝～106.68㎝미만",
+                "거실장 (TV받침대, 문갑 등)|길이 50cm미만"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 905
+        },
+        {
+          "case_id": "m-009",
+          "category": "colloquial",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "화장대|거울포함",
+                "화장대|거울미포함",
+                "거울,액자|1㎡이상"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 915
+        },
+        {
+          "case_id": "m-013",
+          "category": "colloquial",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "침대 (매트리스, 틀 포함)|1인용",
+                "침대틀|1인용",
+                "매트리스|1인용"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 923
+        },
+        {
+          "case_id": "m-016",
+          "category": "colloquial",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "자전거|성인용",
+                "자전거|아동용",
+                "헬스기구|런닝머신,싸이클"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 932
+        },
+        {
+          "case_id": "m-019",
+          "category": "typo_spacing",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "책상|책상상판",
+                "책상|양수(대형)",
+                "책상|h형책상(상판,책장,서랍 포함)"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 895
+        },
+        {
+          "case_id": "m-022",
+          "category": "typo_spacing",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "신발장|높이 150cm 이상",
+                "신발장|높이 150cm 미만",
+                "장식장, 진열장|1㎡이상"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 918
+        },
+        {
+          "case_id": "m-027",
+          "category": "quantity",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "책상|책상상판",
+                "책상|양수(대형)",
+                "책상|h형책상(상판,책장,서랍 포함)"
+              ],
+              "quantity": [
+                4,
+                4
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 418
+        },
+        {
+          "case_id": "m-030",
+          "category": "quantity",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "장롱|폭120cm이상1쪽",
+                "장롱|폭120cm미만1쪽",
+                "장롱받침목|기타품목"
+              ],
+              "quantity": [
+                3,
+                3
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 890
+        },
+        {
+          "case_id": "m-033",
+          "category": "quantity",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "의자|1인 일반의자",
+                "의자|1인 회전의자",
+                "의자|장의자(4인용)"
+              ],
+              "quantity": [
+                99,
+                99
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 896
+        },
+        {
+          "case_id": "m-037",
+          "category": "multi_spec",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "신발장|높이 150cm 이상",
+                "신발장|높이 150cm 미만",
+                "장식장, 진열장|1㎡이상"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 418
+        },
+        {
+          "case_id": "m-040",
+          "category": "multi_spec",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "TV|106.68㎝이상",
+                "TV|48.26㎝ 미만",
+                "TV|48.26㎝～106.68㎝미만"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 921
+        },
+        {
+          "case_id": "m-043",
+          "category": "multi_spec",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "카페트|6㎡이상",
+                "카페트|6㎡미만",
+                "돗자리,대자리|4㎡미만"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 894
+        },
+        {
+          "case_id": "m-047",
+          "category": "other_muni",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "matched",
+              "selected": "3220000|쇼파|2인용",
+              "top3": [
+                "쇼파|2인용",
+                "쇼파|1인용",
+                "쇼파|3인용"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": false,
+          "latency_ms": 1012
+        },
+        {
+          "case_id": "m-050",
+          "category": "other_muni",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "matched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "소파(쿠션 별도)|3인용(폭 1.8m 이하)",
+                "침대 침대틀|일반형 3인용(가로 1.5m 이상)",
+                "침대 매트리스|일반형 3인용(가로 1.5m 이상)"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 972
+        },
+        {
+          "case_id": "m-055",
+          "category": "vague_unmatched",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "unmatched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "다리미판|기타품목",
+                "다리미|모든규격",
+                "재봉틀|기타품목"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 872
+        },
+        {
+          "case_id": "m-058",
+          "category": "vague_unmatched",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "unmatched",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "의자|안마의자(모든규격)",
+                "진동베개|기타품목",
+                "헬스기구|런닝머신,싸이클"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 870
+        },
+        {
+          "case_id": "m-061",
+          "category": "vague_unmatched",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "청소기|가정용",
+                "카페트|6㎡미만",
+                "카페트|6㎡이상"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 885
+        },
+        {
+          "case_id": "m-064",
+          "category": "vague_unmatched",
+          "split": "test",
+          "lines": [
+            {
+              "expected_status": "ambiguous",
+              "actual_status": "ambiguous",
+              "selected": null,
+              "top3": [
+                "TV|48.26㎝ 미만",
+                "TV|48.26㎝～106.68㎝미만",
+                "TV|106.68㎝이상"
+              ],
+              "quantity": [
+                1,
+                1
+              ]
+            }
+          ],
+          "degraded": true,
+          "latency_ms": 867
+        }
+      ],
+      "embedding_fallback_queries": 0
+    }
+  ],
+  "notes": ""
+}
