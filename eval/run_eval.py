@@ -89,7 +89,8 @@ def boot_ci(per_case, seed=20261116):
     vals.sort()
     tot = sum(a for a, _ in per_case)
     cnt = sum(b for _, b in per_case)
-    return {"value": round(tot / cnt, 4) if cnt else None, "ci95": [round(pct(vals, 0.025), 4), round(pct(vals, 0.975), 4)],
+    ci = [round(pct(vals, 0.025), 4), round(pct(vals, 0.975), 4)] if vals else [None, None]  # 대상 줄이 0개면 구간 없음
+    return {"value": round(tot / cnt, 4) if cnt else None, "ci95": ci,
             "n_lines": cnt, "n_cases": n}
 
 
