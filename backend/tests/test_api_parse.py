@@ -141,3 +141,13 @@ def test_일일_상한_초과시_degraded():
             assert body["degraded"] and body["degraded_reason"] == "LLM_DAILY_LIMIT"
     finally:
         config.settings.daily_llm_limit = old
+
+
+@needs_db
+def test_단어_순서가_달라도_후보를_찾는다():
+    # 성남시 표에는 "쇼파 / 2～3인용" 형태 → "3인용 소파"는 전체 일치가 없어 단어별 검색으로 보완
+    set_llm_override(lambda b: {})
+    r = client.post(URL, json={"municipality_code": SEONGNAM, "text": "3인용 소파"})
+    line = r.json()["lines"][0]
+    assert line["candidates"], "후보가 있어야 함"
+    assert line["status"] == "ambiguous" and line["selected_item_id"] is None

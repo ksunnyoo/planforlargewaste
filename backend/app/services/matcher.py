@@ -27,11 +27,26 @@ def _clear_winner(cands: List[dict]) -> bool:
     return len(cands) == 1 or cands[0]["score"] - cands[1]["score"] >= SURE_GAP
 
 
+def _search(conn: Connection, code: str, query: str) -> List[dict]:
+    """전체 문구로 못 찾으면 단어별로 검색해 합친다(예: "3인용 소파" → "소파" 후보 + "3인용" 후보).
+    합친 결과는 점수를 낮춰 자동 선택(matched)이 되지 않게 하고 LLM·사용자 선택으로 넘긴다."""
+    found = search_items(conn, code, query, FETCH_LIMIT)
+    tokens = query.split()
+    if found or len(tokens) < 2:
+        return found
+    merged = {}
+    for t in tokens:
+        for c in search_items(conn, code, t, FETCH_LIMIT):
+            if c["item_id"] not in merged or c["score"] > merged[c["item_id"]]["score"]:
+                merged[c["item_id"]] = dict(c, score=round(min(c["score"], 0.8), 2))
+    return sorted(merged.values(), key=lambda c: -c["score"])[:FETCH_LIMIT]
+
+
 def match_lines(conn: Connection, code: str, lines: List[ParsedLine]) -> Tuple[List[dict], bool, Optional[str]]:
     results = []
     pending = []  # LLM에 물어볼 줄
     for pl in lines:
-        cands = search_items(conn, code, pl.query, FETCH_LIMIT) if pl.query else []
+        cands = _search(conn, code, pl.query) if pl.query else []
         cands = [dict(c, reason=SCORE_REASON) for c in cands]
         r = {"line_no": pl.line_no, "raw_text": pl.raw_text, "quantity": pl.quantity,
              "status": "unmatched", "needs_review": True, "selected_item_id": None,

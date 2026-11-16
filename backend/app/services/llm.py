@@ -58,6 +58,19 @@ def _parse(text: str) -> List[dict]:
     return [d for d in data if isinstance(d, dict)]
 
 
+def _as_text(content) -> str:
+    """Gemini는 content를 [{'type':'text','text':...}] 목록으로 줄 수 있어 글자만 이어 붙인다."""
+    if isinstance(content, str):
+        return content
+    parts = []
+    for c in content or []:
+        if isinstance(c, str):
+            parts.append(c)
+        elif isinstance(c, dict) and isinstance(c.get("text"), str):
+            parts.append(c["text"])
+    return "".join(parts)
+
+
 def choose_candidates(batch: List[dict]) -> Dict[int, dict]:
     if _override is not None:
         return _override(batch)
@@ -69,7 +82,7 @@ def choose_candidates(batch: List[dict]) -> Dict[int, dict]:
         raise
     except Exception as e:  # 네트워크·한도·모델명 오류 등
         raise LlmUnavailable(type(e).__name__) from e
-    content = resp.content if isinstance(resp.content, str) else str(resp.content)
+    content = _as_text(resp.content)
     out: Dict[int, dict] = {}
     for d in _parse(content):
         ln, n = d.get("line_no"), d.get("n")
