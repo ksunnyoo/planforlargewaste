@@ -151,3 +151,20 @@ def test_단어_순서가_달라도_후보를_찾는다():
     line = r.json()["lines"][0]
     assert line["candidates"], "후보가 있어야 함"
     assert line["status"] == "ambiguous" and line["selected_item_id"] is None
+
+
+@needs_db
+def test_침대_검색에서_받침대_품목이_앞서지_않는다():
+    r = client.get("/api/v1/items/search", params={"municipality_code": SEONGNAM, "q": "침대", "limit": 5})
+    names = [i["name"] for i in r.json()["items"]]
+    assert names and not names[0].startswith("거실장") and "침대" in names[0]
+
+
+@needs_db
+@pytest.mark.parametrize("text_in,want", [("싱글 침대", "침대"), ("로봇청소기", "청소기"), ("소파베드", "쇼파")])
+def test_복합어도_관련_후보를_찾는다(text_in, want):
+    set_llm_override(lambda b: {})
+    line = client.post(URL, json={"municipality_code": SEONGNAM, "text": text_in}).json()["lines"][0]
+    assert line["candidates"], "후보가 있어야 함"
+    assert want in line["candidates"][0]["name"]
+    assert line["selected_item_id"] is None  # 부분 일치는 자동 선택하지 않음

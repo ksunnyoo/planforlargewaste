@@ -16,7 +16,9 @@ SELECT wi.id AS item_id, wi.category, wi.name, wi.spec, wi.fee_won, wi.fee_type,
        GREATEST(
          similarity(c.search_text, :q),
          word_similarity(:q, c.search_text),
-         CASE WHEN c.search_text ILIKE :like ESCAPE '\\' THEN 0.9 ELSE 0 END
+         CASE WHEN c.name_norm LIKE :prefix ESCAPE '\\' THEN 0.95
+              WHEN c.search_text ILIKE :like ESCAPE '\\' THEN 0.9 - LEAST(strpos(c.search_text, :q), 40) * 0.002
+              ELSE 0 END
        ) AS score
 FROM waste_items wi
 JOIN item_catalog c ON c.id = wi.catalog_id
@@ -50,7 +52,7 @@ def search_items(conn: Connection, municipality_code: str, q: str, limit: int) -
     if not q:
         return []
     rows = conn.execute(SEARCH_SQL, {
-        "q": q, "like": "%" + escape_like(q) + "%", "code": municipality_code, "limit": limit,
+        "q": q, "like": "%" + escape_like(q) + "%", "prefix": escape_like(q) + "%", "code": municipality_code, "limit": limit,
     }).mappings().all()
     return [{
         "item_id": r["item_id"], "category": r["category"], "name": r["name"], "spec": r["spec"],

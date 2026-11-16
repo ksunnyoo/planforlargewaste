@@ -19,6 +19,7 @@ FETCH_LIMIT = 5
 SURE_SCORE = 0.85
 SURE_GAP = 0.15
 SCORE_REASON = "검색 점수 기준"
+SUBSTR_MAX_QUERIES = 12
 
 
 def _clear_winner(cands: List[dict]) -> bool:
@@ -31,14 +32,32 @@ def _search(conn: Connection, code: str, query: str) -> List[dict]:
     """전체 문구로 못 찾으면 단어별로 검색해 합친다(예: "3인용 소파" → "소파" 후보 + "3인용" 후보).
     합친 결과는 점수를 낮춰 자동 선택(matched)이 되지 않게 하고 LLM·사용자 선택으로 넘긴다."""
     found = search_items(conn, code, query, FETCH_LIMIT)
-    tokens = query.split()
-    if found or len(tokens) < 2:
+    if found:
         return found
     merged = {}
-    for t in tokens:
-        for c in search_items(conn, code, t, FETCH_LIMIT):
+
+    def add(rows, cap):
+        for c in rows:
             if c["item_id"] not in merged or c["score"] > merged[c["item_id"]]["score"]:
-                merged[c["item_id"]] = dict(c, score=round(min(c["score"], 0.8), 2))
+                merged[c["item_id"]] = dict(c, score=round(min(c["score"], cap), 2))
+
+    tokens = query.split()
+    if len(tokens) >= 2:
+        for t in tokens:
+            add(search_items(conn, code, t, FETCH_LIMIT), 0.8)
+    if not merged:  # 붙여 쓴 복합어(로봇청소기, 소파베드): 긴 부분 문자열부터 찾는다
+        compact = "".join(tokens)
+        tried = 0
+        for size in range(len(compact) - 1, 1, -1):
+            # 두 글자는 단어 앞부분일 때만 쓴다("스타일러"에서 "일러"가 보일러와 겹치는 오탐을 막기 위해)
+            starts = [0] if size == 2 else range(0, len(compact) - size + 1)
+            for i in starts:
+                if tried >= SUBSTR_MAX_QUERIES:
+                    break
+                tried += 1
+                add(search_items(conn, code, compact[i:i + size], FETCH_LIMIT), 0.7)
+            if merged:
+                break
     return sorted(merged.values(), key=lambda c: -c["score"])[:FETCH_LIMIT]
 
 
