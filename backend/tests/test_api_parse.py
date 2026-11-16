@@ -168,3 +168,4 @@ def test_복합어도_관련_후보를_찾는다(text_in, want):
     assert line["candidates"], "후보가 있어야 함"
     assert want in line["candidates"][0]["name"]
     assert line["selected_item_id"] is None  # 부분 일치는 자동 선택하지 않음
+
