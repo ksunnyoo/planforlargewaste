@@ -1,0 +1,17 @@
+{
+  "git_commit": "519d402",
+  "files": {
+    "backend/app/services/matcher.py": "74d4b4620c18e306e6f6eac553bb5d212cbad97b61eb0a5af612bf7b01aa342d",
+    "backend/app/services/item_search.py": "17a19abba7471049b2639b7024772a03385b219131a0d51324b696b9bce3906a",
+    "backend/app/services/embeddings.py": "188dda991c2ec6d9c0b0edcbfbb6d0337850d03c659caba266f0a4f2cf15dfab",
+    "backend/app/services/llm.py": "9721621a56aa6395a363e3a10cf837b4062e03577962d9e741dfcfff7d59a6e3",
+    "backend/app/services/judge.py": "40ae0f5b6a94982c8709dd697c6c77639a3e388a0103328abc8f35c411fcfaaf",
+    "backend/app/services/procedure.py": "58225129a83ce47b43aafb0e17d31bba55bc8cad0cd58e3c754dc01d199e6cf0",
+    "backend/app/core/config.py": "bfff4027b2d312b435a32fafc48963cda5f0e98050b62b0b391040f6ce4b1428",
+    "eval/run_eval.py": "ab925aa29e2e7b63dc039d22323f1be6a5775b4cafd28cac864e53892e3030ce",
+    "eval/datasets/v1/matching.jsonl": "d53279dfb9596fd9b9eba4574836b723392d033bfa6b0fcd194b709fdbf7b9b7",
+    "eval/datasets/v1/procedure.jsonl": "66b19d177760659abd59937e56fa9ee405da1f7f7174eaa54d5171a9bd240594"
+  },
+  "frozen_at": "2026-11-17T07:27:18+09:00",
+  "note": "11/17 시험 분할 측정 전 동결. 개발용 C2/C1/C4 재측정 완료(폴백 0)"
+}
