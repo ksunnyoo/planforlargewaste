@@ -91,7 +91,15 @@ def main():
                           ["municipality_code", "catalog_id", "category", "name", "spec",
                            "fee_won", "fee_type", "source_dataset", "base_date"],
                           data / "waste_items.csv")
+            # 절차 안내문 청크(성남시). 파일이 없으면 건너뛴다.
+            proc_path = ROOT / "data" / "raw" / "seongnam_procedure.md"
+            n4 = 0
+            if proc_path.exists():
+                sys.path.insert(0, str(ROOT / "scripts"))
+                from load_procedure import load as load_procedure
+                n4 = load_procedure(cur)
         conn.commit()
+    print(f"절차 청크 {n4}개")
     print(f"적재 완료: municipalities {n1}, item_catalog {n2}, waste_items {n3}")
     return 0
 

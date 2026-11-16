@@ -73,14 +73,15 @@ def test_견적_생성_계산과_조회(created):
     assert t["municipal_fee_total_won"] == desk["fee_won"] * 2
     assert t["operator_fee_total_won"] == 10000
     assert t["grand_total_won"] == desk["fee_won"] * 2 + 10000
-    assert d["procedure"]["status"] == "insufficient_evidence"
-    assert d["citations"] == [] and d["data_base_date"] == "2026-11-13"
+    assert d["procedure"]["status"] == "ok"  # 가짜 LLM(conftest) + 성남시 청크
+    assert d["citations"] and d["data_base_date"] == "2026-11-13"
     assert "input_text" not in d
 
     g = client.get("/api/v1/estimates/" + d["public_id"])
     assert g.status_code == 200
     gd = g.json()
     assert gd["lines"] == d["lines"] and gd["totals"] == d["totals"]
+    assert gd["procedure"] == d["procedure"] and gd["citations"] == d["citations"]  # 저장된 절차가 그대로 조회됨
     assert "input_text" not in gd
 
 

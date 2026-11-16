@@ -67,7 +67,7 @@ export interface Citation {
   chunk_id: number;
   source_name: string;
   section: string;
-  base_date: string;
+  base_date: string | null;
   excerpt: string;
 }
 

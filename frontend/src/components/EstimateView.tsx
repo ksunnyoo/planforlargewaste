@@ -44,9 +44,19 @@ function ProcedurePanel({ e }: { e: Estimate }) {
       {p.status !== "ok" && (
         <div className="mt-3 space-y-2">
           {p.warnings.map((w, i) => (
-            <Banner key={i} tone="info">{w}</Banner>
+            <Banner key={i} tone={p.status === "raw_chunks" ? "warn" : "info"}>{w}</Banner>
           ))}
         </div>
+      )}
+      {p.status === "raw_chunks" && (
+        <ul className="mt-3 space-y-2">
+          {e.citations.map((c) => (
+            <li key={c.chunk_id} className="rounded-xl border border-line p-3 text-sm">
+              <p className="font-semibold">{c.section}</p>
+              <p className="mt-1 whitespace-pre-line text-slate-700">{c.excerpt}</p>
+            </li>
+          ))}
+        </ul>
       )}
       {e.citations.length > 0 && (
         <div className="mt-4 border-t border-line pt-3 text-xs text-muted">
@@ -54,7 +64,7 @@ function ProcedurePanel({ e }: { e: Estimate }) {
           <ul className="mt-1 space-y-1">
             {e.citations.map((c) => (
               <li key={c.chunk_id}>
-                {c.source_name} · {c.section} · 기준일 {dateKo(c.base_date)}
+                {c.source_name} · {c.section} · {c.base_date ? `기준일 ${dateKo(c.base_date)}` : "기준일 미확인"}
               </li>
             ))}
           </ul>

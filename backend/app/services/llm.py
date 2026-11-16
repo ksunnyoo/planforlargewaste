@@ -71,21 +71,62 @@ def _as_text(content) -> str:
     return "".join(parts)
 
 
-def choose_candidates(batch: List[dict]) -> Dict[int, dict]:
-    if _override is not None:
-        return _override(batch)
-    payload = json.dumps(batch, ensure_ascii=False)
+def _invoke(system: str, payload: str) -> str:
     try:
         chain = _build_chain()
-        resp = chain.invoke([("system", SYSTEM), ("human", payload)])
+        resp = chain.invoke([("system", system), ("human", payload)])
     except LlmUnavailable:
         raise
     except Exception as e:  # 네트워크·한도·모델명 오류 등
         raise LlmUnavailable(type(e).__name__) from e
-    content = _as_text(resp.content)
+    return _as_text(resp.content)
+
+
+def choose_candidates(batch: List[dict]) -> Dict[int, dict]:
+    if _override is not None:
+        return _override(batch)
+    content = _invoke(SYSTEM, json.dumps(batch, ensure_ascii=False))
     out: Dict[int, dict] = {}
     for d in _parse(content):
         ln, n = d.get("line_no"), d.get("n")
         if isinstance(ln, int) and (n is None or isinstance(n, int)):
             out[ln] = {"n": n, "reason": str(d.get("reason") or "")[:80]}
     return out
+
+
+# ---- 절차 안내 생성 ----
+ProcFn = Callable[[dict], dict]
+_proc_override: Optional[ProcFn] = None
+
+
+def set_procedure_override(fn: Optional[ProcFn]) -> None:
+    global _proc_override
+    _proc_override = fn
+
+
+PROC_SYSTEM = (
+    "당신은 지자체 대형폐기물 배출 안내문을 정리하는 도우미입니다. 제공된 근거 문단(chunks)에 있는 내용만 사용합니다.\n"
+    "규칙: (1) 근거에 없는 내용·추측 금지. (2) 날짜·시간·금액·전화번호·URL은 근거에 있는 값만 그대로 사용. "
+    "(3) steps는 3~6개, 각 항목에 title(짧게), detail(한두 문장), citation_ids(근거 id 목록, 1개 이상)를 넣음. "
+    "(4) checklist는 0~5개, 각 항목에 text와 citation_ids를 넣음. "
+    "(5) 문장은 공공기관 안내문의 하십시오체로 씀. (6) notes에 적힌 조건은 반영하되 근거에 없는 내용은 만들지 않음.\n"
+    '출력은 JSON 객체 하나만: {"steps":[{"title":"","detail":"","citation_ids":[1]}],'
+    '"checklist":[{"text":"","citation_ids":[1]}]}'
+)
+
+
+def generate_procedure(payload: dict) -> dict:
+    """payload: {"chunks":[{"id","section","content"}], "notes":[str]} → {"steps":[...],"checklist":[...]}"""
+    if _proc_override is not None:
+        return _proc_override(payload)
+    content = _invoke(PROC_SYSTEM, json.dumps(payload, ensure_ascii=False))
+    m = re.search(r"\{.*\}", content, re.S)
+    if not m:
+        raise LlmUnavailable("응답 형식 오류")
+    try:
+        data = json.loads(m.group(0))
+    except ValueError as e:
+        raise LlmUnavailable("응답 형식 오류") from e
+    if not isinstance(data, dict):
+        raise LlmUnavailable("응답 형식 오류")
+    return data

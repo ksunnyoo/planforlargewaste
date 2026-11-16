@@ -4,6 +4,7 @@
 - 견적 시점의 단가를 estimate_lines에 저장하므로 이후 데이터가 바뀌어도 조회 결과는 같다.
 - 절차 안내(RAG)는 아직 연결 전이라 procedure는 임시 응답이다(아래 build_procedure 참고).
 """
+import json
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,7 @@ from app.services import usage
 from app.services.fee_calculator import FeeCalculationError, LineInput, calculate
 from app.services.line_parser import MAX_LINES, parse_lines
 from app.services.matcher import match_lines
+from app.services.procedure import fetch_chunks, make_procedure
 
 router = APIRouter()
 
@@ -63,7 +65,7 @@ def iso_kst(dt: datetime) -> str:
 def load_response(conn, estimate_id, public_id: str) -> dict:
     est = conn.execute(text("""
         SELECT e.municipality_code, e.municipal_fee_total, e.operator_fee_total, e.degraded,
-               e.created_at, e.expires_at, m.data_base_date, m.procedure_supported
+               e.created_at, e.expires_at, e.procedure_json, m.data_base_date, m.procedure_supported
         FROM estimates e JOIN municipalities m ON m.code = e.municipality_code
         WHERE e.id = :id"""), {"id": estimate_id}).mappings().one()
     rows = conn.execute(text("""
@@ -82,16 +84,19 @@ def load_response(conn, estimate_id, public_id: str) -> dict:
         "operator_fee_won": r["operator_fee_won"],
     } for r in rows]
     municipal, operator = est["municipal_fee_total"], est["operator_fee_total"]
+    stored = est["procedure_json"] or {}
+    if "procedure" not in stored:  # 절차 저장 기능 이전에 만든 견적
+        stored = {"procedure": build_procedure(est["procedure_supported"]), "citations": [], "degraded_reason": None}
     return {
         "public_id": public_id,
         "municipality_code": est["municipality_code"],
         "lines": lines,
         "totals": {"municipal_fee_total_won": municipal, "operator_fee_total_won": operator,
                    "grand_total_won": municipal + operator},
-        "procedure": build_procedure(est["procedure_supported"]),
-        "citations": [],
+        "procedure": stored["procedure"],
+        "citations": stored["citations"],
         "degraded": est["degraded"],
-        "degraded_reason": None,
+        "degraded_reason": stored["degraded_reason"],
         "data_base_date": est["data_base_date"].isoformat() if est["data_base_date"] else None,
         "disclaimer": DISCLAIMER,
         "created_at": iso_kst(est["created_at"]),
@@ -101,11 +106,21 @@ def load_response(conn, estimate_id, public_id: str) -> dict:
 
 
 @router.post("/estimates", status_code=201)
-def create_estimate(body: EstimateIn):
-    """API-05 견적 생성: 서버 DB 단가로 계산해 저장하고 반환한다."""
-    with get_engine().begin() as conn:
-        if not conn.execute(text("SELECT 1 FROM municipalities WHERE code = :c"),
-                            {"c": body.municipality_code}).first():
+def create_estimate(body: EstimateIn, request: Request):
+    """API-05 견적 생성: 서버 DB 단가로 계산하고 절차 안내를 만들어 저장·반환한다.
+
+    DB 연결은 (1) 검증·계산·청크 읽기 (2) 저장 두 번으로 나눈다. LLM 호출 동안 연결을 잡고 있지 않기 위해서다.
+    """
+    host = request.client.host if request.client else "unknown"
+    wait = usage.check_rate(host + ":create", config.settings.rate_limit_per_minute)
+    if wait is not None:
+        raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
+                       headers={"Retry-After": str(wait)})
+
+    with get_engine().connect() as conn:
+        muni = conn.execute(text("SELECT procedure_supported FROM municipalities WHERE code = :c"),
+                            {"c": body.municipality_code}).mappings().first()
+        if muni is None:
             raise AppError(404, "MUNICIPALITY_NOT_FOUND", "지원하지 않는 지자체입니다.")
 
         ids = sorted({ln.item_id for ln in body.lines})
@@ -125,18 +140,28 @@ def create_estimate(body: EstimateIn):
         except FeeCalculationError as e:
             raise AppError(400, "VALIDATION_ERROR", "입력 내용을 확인하십시오.", [{"field": "lines", "reason": str(e)}])
 
+        supported = bool(muni["procedure_supported"])
+        chunks = fetch_chunks(conn, body.municipality_code) if supported else []
+
+    has_exempt = any(r.fee_type == "exempt" for r in results)
+    proc = make_procedure(chunks, supported, has_exempt)  # LLM 호출(연결 없음)
+
+    with get_engine().begin() as conn:
         for _ in range(5):  # public_id 충돌 시 재시도
             public_id = new_public_id()
             try:
                 with conn.begin_nested():
                     est_id = conn.execute(text("""
                         INSERT INTO estimates (public_id, municipality_code, input_text,
-                            municipal_fee_total, operator_fee_total, degraded, expires_at)
-                        VALUES (:pid, :code, :txt, :mt, :ot, false, now() + make_interval(days => :d))
+                            municipal_fee_total, operator_fee_total, procedure_json, degraded, expires_at)
+                        VALUES (:pid, :code, :txt, :mt, :ot, CAST(:pj AS jsonb), :dg,
+                                now() + make_interval(days => :d))
                         RETURNING id"""),
                         {"pid": public_id, "code": body.municipality_code, "txt": body.input_text,
                          "mt": totals.municipal_fee_total_won, "ot": totals.operator_fee_total_won,
-                         "d": EXPIRE_DAYS}).scalar_one()
+                         "pj": json.dumps({"procedure": proc["procedure"], "citations": proc["citations"],
+                                           "degraded_reason": proc["degraded_reason"]}, ensure_ascii=False),
+                         "dg": proc["degraded"], "d": EXPIRE_DAYS}).scalar_one()
                 break
             except IntegrityError:
                 continue
