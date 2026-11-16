@@ -22,7 +22,8 @@ from app.services import usage
 from app.services.fee_calculator import FeeCalculationError, LineInput, calculate
 from app.services.line_parser import MAX_LINES, parse_lines
 from app.services.matcher import match_lines
-from app.services.procedure import fetch_chunks, make_procedure
+from app.services.llm import LlmUnavailable
+from app.services.procedure import UNSUPPORTED_ANSWER, answer_question, fetch_chunks, make_procedure
 
 router = APIRouter()
 
@@ -219,3 +220,33 @@ def parse_estimate(body: ParseIn, request: Request):
             "degraded": degraded, "degraded_reason": reason,
             "data_base_date": m["data_base_date"].isoformat() if m["data_base_date"] else None,
             "disclaimer": DISCLAIMER}
+
+
+class QaIn(BaseModel):
+    municipality_code: str = Field(..., min_length=1, max_length=20)
+    question: str = Field(..., min_length=1, max_length=200)
+
+
+@router.post("/qa")
+def ask_procedure(body: QaIn, request: Request):
+    """API-08 절차 질문. 안내문에 근거가 있을 때만 답하고, 없으면 거절한다. 저장하지 않는다."""
+    wait = usage.check_rate((request.client.host if request.client else "unknown") + ":qa",
+                            config.settings.rate_limit_per_minute)
+    if wait is not None:
+        raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
+                       headers={"Retry-After": str(wait)})
+    with get_engine().connect() as conn:
+        muni = conn.execute(text("SELECT procedure_supported, data_base_date FROM municipalities WHERE code = :c"),
+                            {"c": body.municipality_code}).mappings().first()
+        if muni is None:
+            raise AppError(404, "MUNICIPALITY_NOT_FOUND", "지원하지 않는 지자체입니다.")
+        chunks = fetch_chunks(conn, body.municipality_code) if muni["procedure_supported"] else []
+    base = muni["data_base_date"].isoformat() if muni["data_base_date"] else None
+    if not muni["procedure_supported"]:
+        res = {"answerable": False, "answer": UNSUPPORTED_ANSWER, "citations": []}
+    else:
+        try:
+            res = answer_question(chunks, body.question)
+        except LlmUnavailable:
+            raise AppError(503, "LLM_UNAVAILABLE", "답변 생성을 사용할 수 없습니다. 잠시 후 다시 시도하십시오.")
+    return {**res, "data_base_date": base, "disclaimer": DISCLAIMER}

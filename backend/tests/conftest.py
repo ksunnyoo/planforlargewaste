@@ -2,7 +2,7 @@
 import pytest
 
 from app.services import usage
-from app.services.llm import set_llm_override, set_procedure_override
+from app.services.llm import set_llm_override, set_procedure_override, set_qa_override
 
 
 def fake_procedure(payload):
@@ -18,7 +18,9 @@ def _isolate_llm_and_limits():
     usage.reset_for_tests()
     set_llm_override(lambda batch: {})
     set_procedure_override(fake_procedure)
+    set_qa_override(lambda p: {"answerable": False})
     yield
     set_llm_override(None)
     set_procedure_override(None)
+    set_qa_override(None)
     usage.reset_for_tests()

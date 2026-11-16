@@ -130,3 +130,39 @@ def generate_procedure(payload: dict) -> dict:
     if not isinstance(data, dict):
         raise LlmUnavailable("응답 형식 오류")
     return data
+
+
+# ---- 절차 질문(QA) ----
+QaFn = Callable[[dict], dict]
+_qa_override: Optional[QaFn] = None
+
+
+def set_qa_override(fn: Optional[QaFn]) -> None:
+    global _qa_override
+    _qa_override = fn
+
+
+QA_SYSTEM = (
+    "당신은 지자체 대형폐기물 배출 안내문에 근거해 질문에 답하는 도우미입니다. 제공된 근거 문단(chunks)에 있는 내용만 사용합니다.\n"
+    "규칙: (1) 근거에서 답을 확인할 수 있으면 answerable을 true로 하고, 한두 문장의 하십시오체로 답하며 citation_ids에 사용한 근거 id를 넣음. "
+    "(2) 근거에 답이 없으면 answerable을 false로 하고 answer는 빈 문자열. 추측·일반 상식으로 답하지 않음. "
+    "(3) 날짜·시간·금액·전화번호·URL은 근거에 있는 값만 그대로 사용.\n"
+    '출력은 JSON 객체 하나만: {"answerable":true,"answer":"","citation_ids":[1]}'
+)
+
+
+def generate_answer(payload: dict) -> dict:
+    """payload: {"question": str, "chunks":[{"id","section","content"}]}"""
+    if _qa_override is not None:
+        return _qa_override(payload)
+    content = _invoke(QA_SYSTEM, json.dumps(payload, ensure_ascii=False))
+    m = re.search(r"\{.*\}", content, re.S)
+    if not m:
+        raise LlmUnavailable("응답 형식 오류")
+    try:
+        data = json.loads(m.group(0))
+    except ValueError as e:
+        raise LlmUnavailable("응답 형식 오류") from e
+    if not isinstance(data, dict):
+        raise LlmUnavailable("응답 형식 오류")
+    return data

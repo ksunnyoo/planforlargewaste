@@ -14,7 +14,7 @@ from sqlalchemy.engine import Connection
 
 from app.core import config
 from app.services import usage
-from app.services.llm import LlmUnavailable, generate_procedure
+from app.services.llm import LlmUnavailable, generate_answer, generate_procedure
 
 TOP_K = 5
 EXCERPT_MAX = 200
@@ -126,3 +126,65 @@ def make_procedure(chunks: List[dict], supported: bool, has_exempt: bool) -> dic
         return _raw(selected, "PROCEDURE_VALIDATION_FAILED")
     except LlmUnavailable:
         return _raw(selected, "LLM_UNAVAILABLE")
+
+
+# ---- 절차 질문(API-08) ----
+QA_TOP_K = 3
+QA_MIN_OVERLAP = 2
+QA_STOP = {"나요", "있나", "하나", "가요", "어떻", "떻게", "어디", "인가", "할까", "하는", "해요", "있어", "습니", "니까", "있는", "수있", "그리", "에서", "에는", "으로"}
+REFUSE = "해당 내용은 안내문에서 확인되지 않습니다. 지자체에 문의하십시오."
+REFUSE_UNVERIFIED = "답변을 검증하지 못했습니다. 지자체에 문의하십시오."
+UNSUPPORTED_ANSWER = "이 지역은 수수료만 제공합니다. 절차는 해당 지자체의 안내를 확인하십시오."
+
+
+def _bigrams(s: str) -> set:
+    t = re.sub(r"[^0-9A-Za-z가-힣]", "", s)
+    return {t[i:i + 2] for i in range(len(t) - 1)}
+
+
+def select_for_question(chunks: List[dict], question: str, k: int = QA_TOP_K) -> List[dict]:
+    """질문과 겹치는 글자쌍 수로 고른다. 겹침이 QA_MIN_OVERLAP 미만이면 근거 없음으로 본다."""
+    qb = _bigrams(question) - QA_STOP
+    scored = []
+    for c in chunks:
+        overlap = len(qb & _bigrams((c["section"] or "") + c["content"]))
+        if overlap >= QA_MIN_OVERLAP:
+            scored.append((overlap, -c["id"], c))
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return [c for _, _, c in scored[:k]]
+
+
+def _validate_answer(res: dict, selected: List[dict]) -> Optional[Tuple[str, List[int]]]:
+    if not isinstance(res, dict) or res.get("answerable") is not True:
+        return None
+    ids, ans = res.get("citation_ids"), res.get("answer")
+    by_id = {c["id"]: c for c in selected}
+    if not isinstance(ans, str) or not ans.strip():
+        return None
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, int) and i in by_id for i in ids):
+        return None
+    allowed = _digits(" ".join(by_id[i]["content"] for i in ids))
+    if not _digits(ans) <= allowed:
+        return None
+    return ans.strip()[:400], ids
+
+
+def answer_question(chunks: List[dict], question: str) -> dict:
+    """반환: {"answerable", "answer", "citations"}. LLM을 쓸 수 없으면 LlmUnavailable을 그대로 올린다."""
+    selected = select_for_question(chunks, question)
+    if not selected:
+        return {"answerable": False, "answer": REFUSE, "citations": []}
+    payload = {"question": question,
+               "chunks": [{"id": c["id"], "section": c["section"], "content": c["content"]} for c in selected]}
+    for _ in range(2):  # 검증 실패 시 1회 재시도
+        if not usage.try_use_llm(config.settings.daily_llm_limit):
+            raise LlmUnavailable("일일 한도")
+        res = generate_answer(payload)
+        if isinstance(res, dict) and res.get("answerable") is False:
+            return {"answerable": False, "answer": REFUSE, "citations": []}
+        checked = _validate_answer(res, selected)
+        if checked:
+            ans, ids = checked
+            return {"answerable": True, "answer": ans,
+                    "citations": [_citation(c) for c in selected if c["id"] in ids]}
+    return {"answerable": False, "answer": REFUSE_UNVERIFIED, "citations": []}
