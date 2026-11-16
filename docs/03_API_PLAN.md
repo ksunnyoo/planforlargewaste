@@ -76,7 +76,7 @@ LLM 장애는 오류로 끝내지 않고 저하 모드(`degraded: true`)로 응�
 | 임베딩 실패 | trigram 검색만 사용 | 절차 검색을 키워드 검색으로 대체 |
 | 일일 상한 초과 | LLM 없이 처리 | LLM 없이 처리 |
 
-저하 시 `degraded: true`, `degraded_reason`(`llm_unavailable` / `embedding_unavailable` / `daily_limit`)을 포함합니다.
+저하 시 `degraded: true`, `degraded_reason`을 포함합니다. 구현값은 `LLM_UNAVAILABLE` / `LLM_DAILY_LIMIT` / `PROCEDURE_VALIDATION_FAILED`이며, `embedding_unavailable`은 임베딩 도입 시 추가합니다(2026-11-16 동기화).
 
 ### 4.3-1 지원 수준별 동작
 | 지원 수준 | API-04 | API-05 | API-08 |

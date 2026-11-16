@@ -166,3 +166,13 @@ git push
 3. 11/18(수): 프론트 마무리, 평가, 배포 / 11/19(목): 점검·시연
 
 각 단계의 코드는 제가 이 방식(파일을 만들어 전달 + 위치와 실행 명령 안내)으로 계속 드립니다.
+
+## 부록. 배포 환경변수 (Render)
+Render 서비스의 환경변수 설정에 아래를 등록합니다. 값은 채팅·GitHub에 올리지 않습니다.
+| 이름 | 용도 |
+|---|---|
+| `DATABASE_URL` | DB 연결 문자열 |
+| `GEMINI_API_KEY`, `GROQ_API_KEY` | LLM 키 |
+| `GEMINI_MODEL`, `GROQ_MODEL` | 모델명. 코드 기본값이 있으나 모델이 바뀔 수 있으므로 명시해 둡니다 |
+| `CORS_ORIGINS` | 프런트 주소(GitHub Pages 등) |
+| `DAILY_LLM_LIMIT` | 일일 LLM 호출 상한 |

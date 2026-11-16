@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.2 (초안, fee_type, spec_missing 반영) |
+| 문서 버전 | v0.3 (구현 반영 동기화 2026-11-16: degraded_reason, API-07·08 세부) |
 | 작성일 | 2026-11-13 |
 | Base URL | 로컬 `http://127.0.0.1:8000`, 배포 `https://<백엔드-도메인>` |
 | 업무 API 접두사 | `/api/v1` |
@@ -31,7 +31,7 @@
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `degraded` | boolean | 저하 모드 여부 |
-| `degraded_reason` | string \| null | `llm_unavailable`, `embedding_unavailable`, `daily_limit` |
+| `degraded_reason` | string \| null | 구현값: `LLM_UNAVAILABLE`, `LLM_DAILY_LIMIT`, `PROCEDURE_VALIDATION_FAILED`(절차 검증 실패). `embedding_unavailable`은 임베딩 도입 시 추가 |
 | `data_base_date` | string(date) | 사용한 수수료 데이터의 기준일 |
 | `disclaimer` | string | 면책 문구 |
 
@@ -347,6 +347,8 @@ DB가 내려가 있어도 HTTP 200으로 `status: "degraded"`, `db: "down"`을 �
 
 **오류**: `VALIDATION_ERROR`, `MUNICIPALITY_NOT_FOUND`, `ITEM_NOT_IN_MUNICIPALITY`, `RATE_LIMITED`, `DB_UNAVAILABLE`.
 
+구현에서 이 API에도 IP당 분당 요청 제한을 적용합니다(2026-11-16).
+
 ---
 
 ## API-06 견적 조회 (공유)
@@ -391,6 +393,12 @@ DB가 내려가 있어도 HTTP 200으로 `status: "degraded"`, `db: "down"`을 �
 ```
 **오류**: `VALIDATION_ERROR`, `ESTIMATE_NOT_FOUND`, `ESTIMATE_EXPIRED`, `RATE_LIMITED`.
 
+**구현 세부(2026-11-16)**
+- `line_no`는 1~30이며 해당 견적에 있는 줄이어야 합니다(없으면 400, `detail.field = line_no`).
+- `suggested_item_id`는 `type`이 `wrong_item`일 때만 허용하고 견적과 같은 지자체의 품목이어야 합니다(아니면 400).
+- `comment`는 앞뒤 공백을 제거해 저장하며, 견적이 삭제되면 피드백도 함께 삭제됩니다.
+- IP당 분당 요청 제한이 적용됩니다.
+
 ---
 
 ## API-08 절차 질문 (Could)
@@ -419,7 +427,9 @@ DB가 내려가 있어도 HTTP 200으로 `status: "degraded"`, `db: "down"`을 �
 ```
 - 근거가 없으면 `answerable: false`, `answer`는 "해당 내용은 안내문에서 확인되지 않습니다. 지자체에 문의하십시오."이며 `citations`는 빈 배열.
 - 수수료만 제공하는 지자체이면 `answerable: false`, `answer`는 "이 지역은 수수료만 제공합니다. 절차는 해당 지자체의 안내를 확인하십시오."입니다.
+- 답변을 서버 검증(인용 청크 존재, 숫자 일치)에서 통과시키지 못하면 `answerable: false`, `answer`는 "답변을 검증하지 못했습니다. 지자체에 문의하십시오."이며 `citations`는 빈 배열.
 - LLM을 쓸 수 없으면 `503 LLM_UNAVAILABLE`.
+- IP당 분당 요청 제한이 적용되며 초과 시 `429 RATE_LIMITED`와 `Retry-After` 헤더를 반환합니다.
 
 ---
 

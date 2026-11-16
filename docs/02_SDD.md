@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.2 (초안, 성남시 별표 PDF 출처, fee_type, spec_missing, 평가·프론트 스택 반영) |
+| 문서 버전 | v0.3 (구현 반영 동기화 2026-11-16: 메모리 카운터, 키워드 절차 선택, 화면 경로) |
 | 작성일 | 2026-11-13 |
 | 연관 문서 | 01_PRD.md, 03_API_PLAN.md, 04_API_SPEC.md |
 | 원칙 | 비용 0원, 1인 개발, 약 33시간 개발, 지자체 확장 가능 구조 |
@@ -195,7 +195,7 @@ erDiagram
 ### 5.1 설계 메모
 - 금액은 모두 **원 단위 정수**로 저장합니다(부동소수 사용 금지).
 - 견적 시점의 단가를 `estimate_lines.unit_fee_won`에 **복사 저장**합니다. 이후 데이터가 갱신되어도 공유 링크 내용이 바뀌지 않습니다.
-- **사용량 카운터**: 일일 LLM 호출 상한과 IP당 분당 제한은 프로세스 메모리가 아니라 `usage_counters` 테이블에 둡니다. 한 줄 `INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count` 로 원자적으로 증가시키므로 워커가 늘어도 한도가 어긋나지 않습니다. IP는 일 단위 솔트로 해시해 저장하고, `expires_at`이 지난 행은 정리 스크립트가 삭제합니다. 요청마다 DB 왕복이 1회 늘어나는 것이 비용입니다.
+- **사용량 카운터(구현 현황, 2026-11-16 변경)**: 구현은 서버 프로세스 메모리 카운터입니다(서버 재시작 시 초기화, 워커 1개 전제). `usage_counters` 테이블은 스키마에 있으나 사용하지 않습니다. 워커를 늘릴 때 아래 설계로 전환합니다. 설계안: 일일 LLM 호출 상한과 IP당 분당 제한을 `usage_counters` 테이블에 둡니다. 한 줄 `INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count` 로 원자적으로 증가시키므로 워커가 늘어도 한도가 어긋나지 않습니다. IP는 일 단위 솔트로 해시해 저장하고, `expires_at`이 지난 행은 정리 스크립트가 삭제합니다. 요청마다 DB 왕복이 1회 늘어나는 것이 비용입니다.
 - 개인정보 필드는 없습니다. `input_text`에는 개인정보 입력 금지 안내를 표시합니다.
 - `expires_at`은 생성 후 30일이며, 만료 데이터는 주기 정리 스크립트로 삭제합니다.
 - 인덱스: `waste_items(municipality_code, catalog_id)`, `item_catalog.search_text`에 pg_trgm GIN, `item_catalog.embedding`에 벡터 인덱스(HNSW 또는 IVFFlat). 중복 제거 후 조합 수는 **[검증 필요]**이며, 수천 건 이하면 순차 검색도 충분합니다.
@@ -268,6 +268,8 @@ flowchart TD
 
 ## 8. 임베딩 모델 결정 사항
 
+> 구현 현황(2026-11-16): 품목 검색은 pg_trgm, 절차 청크 선택은 키워드 방식입니다. 임베딩은 아직 쓰지 않으며 `embedding` 열은 비어 있습니다. 아래는 도입 시의 결정안입니다.
+
 **문제**: 색인 때와 질의 때 임베딩 모델이 달라지면 벡터 공간이 달라져 검색이 깨집니다. 배포 서버(무료 호스팅)에서는 Ollama를 실행할 수 없습니다.
 
 | 안 | 내용 | 장점 | 단점 |
@@ -317,7 +319,7 @@ fallback = ChatGroq(...)
 chain = primary.with_fallbacks([fallback])
 ```
 - 요청당 LLM 호출은 최대 3회(파싱 1, 후보 선택 1, 절차 1)로 설계합니다. 줄이 많아도 **후보 선택은 줄 전체를 한 번에** 처리합니다.
-- 일일 전체 호출 상한(환경변수 `DAILY_LLM_LIMIT`)과 IP당 분당 요청 제한(10회)을 두며, 두 카운터 모두 DB `usage_counters`에서 센 값을 기준으로 합니다(5.1절). 상한 초과 시 저하 모드로 응답합니다.
+- 일일 전체 호출 상한(환경변수 `DAILY_LLM_LIMIT`)과 IP당 분당 요청 제한(10회)을 두며, 두 카운터는 현재 서버 메모리에서 셉니다(5.1절의 구현 현황 참조). 분당 제한은 `POST /estimates`, `/estimates/parse`, `/qa`, 피드백에 각각 적용합니다. 상한 초과 시 저하 모드로 응답합니다.
 - 결과 캐시: 같은 `(지자체, 정규화된 입력)`의 파싱·매칭 결과는 짧은 시간 메모리 캐시로 재사용합니다(Could). 캐시는 프로세스별이므로 워커를 늘리면 적중률만 낮아질 뿐 정합성 문제는 없습니다.
 - 타임아웃: LLM 호출 15초, 전체 요청 25초를 넘으면 저하 모드.
 
@@ -329,7 +331,7 @@ chain = primary.with_fallbacks([fallback])
 | 화면 | 경로 | 주요 상태 |
 |---|---|---|
 | 입력 | `/` | 입력 텍스트, 제출 중 |
-| 품목 확인 | `/review` | 줄별 후보·선택, 미확정 수 |
+| (품목 확인) | 별도 경로 없음 | 구현에서 `/review` 페이지를 두지 않고, 입력 화면(`/`)의 문장 입력 검토 카드에서 줄별 후보·선택·수량을 확인합니다(2026-11-16 변경) |
 | 결과 | `/result/:publicId` | 견적 데이터, 공유 상태 |
 | 공유 보기 | `/s/:publicId` | 읽기 전용 |
 
@@ -361,7 +363,7 @@ chain = primary.with_fallbacks([fallback])
 | 프론트 | GitHub Actions로 `frontend` 빌드 → GitHub Pages 배포. `base`를 저장소 이름 경로로 설정 |
 | 백엔드 | 저장소 연결 후 무료 웹 서비스 생성, 시작 명령은 uvicorn **[검증 필요: 무료 조건·빌드 방식]** |
 | DB | Supabase 프로젝트 1개. 확장(pgvector, pg_trgm) 활성화 |
-| 환경변수 | `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `CORS_ORIGINS`, `DAILY_LLM_LIMIT`, `EMBEDDING_MODEL` |
+| 환경변수 | `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `GEMINI_MODEL`, `GROQ_MODEL`, `CORS_ORIGINS`, `DAILY_LLM_LIMIT`, `EMBEDDING_MODEL`(현재 미사용) |
 | 유지 호출 | 예약 워크플로가 `/health`를 주기 호출해 절전·일시정지를 완화 (무료 정책 허용 범위 내) |
 | 키 관리 | `.env`는 커밋 금지, `.env.example`만 커밋. 배포 서비스의 비밀값 설정 사용 |
 | 롤백 | 이전 커밋으로 재배포 |
@@ -433,7 +435,8 @@ chain = primary.with_fallbacks([fallback])
 | 프로젝트 형태 | 1인, VS Code 로컬 개발 | 사용자 요구 |
 | 임베딩 | Gemini 임베딩 API 단일 모델(8절 A안), Ollama는 로컬 LLM 테스트용 | 사용자 승인(2026-11-13) |
 | 지자체 범위 | 3단계 지원 수준 | 사용자 승인(2026-11-13) |
-| 한도 카운터 | DB `usage_counters` 테이블(워커 확장 대비) | 사용자 승인(2026-11-13) |
+| 한도 카운터 | 설계는 DB `usage_counters`, 구현은 서버 메모리(워커 1개 전제, 재시작 시 초기화) | 설계 승인 2026-11-13, 구현 변경 동기화 2026-11-16 |
+| 절차 청크 선택 | 키워드 선택 + LLM 작성 + 서버 검증(인용 청크·숫자 일치). 임베딩 검색은 미구현 | 구현 동기화 2026-11-16 |
 | 프론트 상태·요청 | Zustand + TanStack Query + axios, LLM 생성 중 스켈레톤 UI | 사용자 승인(2026-11-13) |
 | UI 문구 | 공공기관 하십시오체, 지자체 안내문 용어 | 사용자 결정(2026-11-13) |
 | 평가 규모 | 80문항(매칭 64·절차 16), 4계층·ablation, 기록 관리 | 사용자 승인(B안, 2026-11-13) |
