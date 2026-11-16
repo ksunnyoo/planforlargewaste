@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMunicipalities } from "../api/hooks";
 import type { Estimate } from "../api/types";
+import { estimateToText } from "../lib/copyText";
 import { dateKo, DISCLAIMER, feeLabel, SPEC_MISSING, won } from "../lib/format";
 import { useDraftStore } from "../store/draftStore";
 import { MunicipalityNotices, SupportBadge } from "./MunicipalityPicker";
@@ -83,6 +84,8 @@ export default function EstimateView({ estimate: e, readOnly }: { estimate: Esti
   const t = e.totals;
   const hasOperator = t.operator_fee_total_won > 0;
 
+  const [copiedText, setCopiedText] = useState(false);
+
   async function copyLink() {
     const url = shareUrl(e.public_id);
     try {
@@ -92,6 +95,17 @@ export default function EstimateView({ estimate: e, readOnly }: { estimate: Esti
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  }
+
+  async function copyContent() {
+    const body = estimateToText(e, muni?.name ?? e.municipality_code);
+    try {
+      await navigator.clipboard.writeText(body);
+    } catch {
+      window.prompt("아래 내용을 복사하십시오.", body);
+    }
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2500);
   }
 
   return (
@@ -112,6 +126,9 @@ export default function EstimateView({ estimate: e, readOnly }: { estimate: Esti
           <div className="no-print flex flex-wrap gap-2">
             <Button variant="secondary" onClick={copyLink}>
               <Icon name={copied ? "check" : "link"} /> {copied ? "복사되었습니다" : "링크 복사"}
+            </Button>
+            <Button variant="secondary" onClick={copyContent}>
+              <Icon name={copiedText ? "check" : "link"} /> {copiedText ? "복사되었습니다" : "내용 복사"}
             </Button>
             <Button variant="secondary" onClick={() => window.print()}>
               <Icon name="print" /> 인쇄
