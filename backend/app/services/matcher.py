@@ -16,7 +16,7 @@ from app.services.llm import LlmUnavailable, choose_candidates
 
 CAND_LIMIT = 3
 FETCH_LIMIT = 5
-SURE_SCORE = 0.85
+SURE_SCORE = 0.9  # 부분 문자열로만 찾은 후보(최대 0.898)는 자동 확정하지 않고 LLM·사용자 선택으로 넘긴다
 SURE_GAP = 0.15
 SCORE_REASON = "검색 점수 기준"
 SUBSTR_MAX_QUERIES = 12
