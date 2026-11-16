@@ -26,3 +26,24 @@ python scripts/prepare_data.py --national data/raw/national_fees.csv \
   --seongnam data/processed/seongnam_fees.csv --misc data/processed/seongnam_fees_misc.csv
 ```
 결과: `data/processed/municipalities.csv`, `item_catalog.csv`, `waste_items.csv`, 점검 리포트 `docs/research/data_check.md`.
+
+## 배포 주소
+- API: https://planforlargewaste.onrender.com (`/health`로 상태 확인, 무료 플랜이라 첫 응답이 느릴 수 있습니다)
+- 화면: https://ksunnyoo.github.io/planforlargewaste/
+
+## 시험
+```
+cd backend
+uv run pytest -q                 # DB 없이 실행되는 시험 + DATABASE_URL이 있으면 DB 시험
+cd ../frontend && npx tsc --noEmit
+```
+GitHub Actions(`.github/workflows/test.yml`)가 같은 시험을 push마다 실행합니다.
+
+## 평가
+```
+uv run --project backend python eval/run_eval.py --config C3 --split dev
+```
+구성(C0~C4)과 지표는 `docs/06_EVAL_PLAN.md`, 실행 결과는 `docs/research/eval_log.md`를 참조하십시오. 검증용(`--split test`)은 시스템 동결 후 한 번만 측정합니다.
+
+## 기타 스크립트
+`scripts/build_embeddings.py`(임베딩 적재), `scripts/cleanup_expired.py`(만료 견적 정리), `scripts/export_feedback.py`(피드백 내보내기). 사용법은 `docs/08_DEV_GUIDE.md` 부록을 참조하십시오.

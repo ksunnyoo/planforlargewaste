@@ -458,3 +458,11 @@ chain = primary.with_fallbacks([fallback])
 4. 공공데이터 이용 허락 범위.
 5. 무료 티어(Gemini·Groq)의 입력 데이터 이용 조건.
 6. 평가 라이브러리(ranx, RAGAS/DeepEval)의 버전과 무료 모델 연동 가능 여부.
+
+## 부록. 구현 반영 사항 (2026-11-16, 추가)
+- 검색: `search_items_mode`(trigram, vector, hybrid)로 구성하며 `RETRIEVAL_MODE` 기본값은 `trigram`입니다. 질의 임베딩이 실패하면 trigram으로 대체합니다. 하이브리드는 RRF(k=60)로 합칩니다.
+- 매칭: 자동 확정 기준은 점수 0.9 이상이고 2위와 0.15 이상 차이일 때입니다. 그 외에는 LLM이 후보 안에서 선택하거나 모호로 남깁니다. 수수료 계산은 코드로만 합니다.
+- 평가: 구성은 C0~C4이며(06_EVAL_PLAN.md 부록), 충실도 판정은 `app/services/judge.py`(K=3 투표)입니다.
+- 피드백: API-07(`POST /api/v1/estimates/{public_id}/feedback`)과 화면의 피드백 카드가 추가되었습니다(04_API_SPEC.md 참조).
+- 운영: 요청 제한과 일일 LLM 호출 한도는 서버 메모리에서 관리합니다(재시작 시 초기화). 만료 견적 정리와 피드백 내보내기는 `scripts/cleanup_expired.py`, `scripts/export_feedback.py`로 합니다.
+- CI: GitHub Actions `test.yml`이 백엔드 시험(`uv run pytest -q`)과 프런트엔드 타입 검사(`npx tsc --noEmit`)를 실행합니다.

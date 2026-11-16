@@ -176,3 +176,14 @@ Render 서비스의 환경변수 설정에 아래를 등록합니다. 값은 채
 | `GEMINI_MODEL`, `GROQ_MODEL` | 모델명. 코드 기본값이 있으나 모델이 바뀔 수 있으므로 명시해 둡니다 |
 | `CORS_ORIGINS` | 프런트 주소(GitHub Pages 등) |
 | `DAILY_LLM_LIMIT` | 일일 LLM 호출 상한 |
+
+## 부록. 스크립트와 평가 실행 (2026-11-16, 추가)
+| 스크립트 | 용도 | 예시 |
+|---|---|---|
+| `scripts/build_embeddings.py` | 품목 임베딩 적재. 분당 한도에서 자동 대기·재시도, 일 한도에서 중단 | `uv run --project backend python scripts/build_embeddings.py --check` / `--count` / `--municipality 3780000` |
+| `scripts/cleanup_expired.py` | 만료 견적 정리(기본은 미리보기, `--apply`로 삭제) | `uv run --project backend python scripts/cleanup_expired.py` |
+| `scripts/export_feedback.py` | 피드백을 JSONL로 내보내기 | `uv run --project backend python scripts/export_feedback.py --out feedback.jsonl` |
+| `eval/run_eval.py` | 평가 실행(구성 C0~C4, `--split dev|test`, `--repeat`, `--judge 3`) | `uv run --project backend python eval/run_eval.py --config C3 --split dev` |
+
+- 임베딩 구성(C1·C2·C4)을 실행하기 전에 `--check`로 호출이 되는지 확인하고, 결과의 `embedding_fallback_queries`가 0인지 확인합니다.
+- 검증용(`--split test`)은 시스템을 동결한 뒤 한 번만 측정합니다.
