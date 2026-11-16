@@ -187,3 +187,11 @@ Render 서비스의 환경변수 설정에 아래를 등록합니다. 값은 채
 
 - 임베딩 구성(C1·C2·C4)을 실행하기 전에 `--check`로 호출이 되는지 확인하고, 결과의 `embedding_fallback_queries`가 0인지 확인합니다.
 - 검증용(`--split test`)은 시스템을 동결한 뒤 한 번만 측정합니다.
+
+### 검증용 측정 전 동결 (추가)
+```
+uv run --project backend python eval/run_eval.py --keycheck
+uv run --project backend python eval/run_eval.py --freeze --note "최종 측정 전 동결"
+git add eval/freeze.json && git commit -m "eval: 동결 기록" && git push
+```
+이후 `--split test`는 동결 기록과 파일이 같을 때만 시작합니다. 파일을 고쳤다면 이력에 사유를 적고 `--freeze`를 다시 실행합니다.

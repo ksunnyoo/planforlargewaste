@@ -8,6 +8,11 @@
   C0 trigram / C1 벡터 / C2 하이브리드(RRF) / C3 trigram + LLM 후보 선택 / C4 하이브리드 + LLM 후보 선택.
   C1·C2·C4는 임베딩이 적재되어 있어야 합니다(scripts/build_embeddings.py). 계획서 6절의 'C3 = C2 + LLM'은 여기서 C4입니다.
 --split test 는 최종 측정용입니다. 결과를 본 뒤 평가셋·설정을 고치면 이력에 기록하십시오(평가 계획서 3.2절).
+동결 절차(검증용 측정 전):
+  uv run --project backend python eval/run_eval.py --freeze --note "동결 사유"   # eval/freeze.json 기록 후 커밋
+  uv run --project backend python eval/run_eval.py --keycheck                    # 평가셋·정답 키 점검(DB 읽기만)
+--split test 는 동결 기록이 없거나 파일이 바뀌었으면, 정답 점검이 실패하면, 같은 구성의 test 결과가 이미 있으면 시작하지 않습니다
+(각각 --allow-unfrozen, --again 으로 우회할 수 있으며 결과 파일에 기록됩니다).
 실행 중 LLM 호출 한도를 위해 DAILY_LLM_LIMIT을 이 실행에서만 크게 올립니다. 키 값은 기록하지 않습니다.
 """
 import argparse
@@ -25,6 +30,9 @@ sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from load_to_db import read_env  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "eval"))
+import freeze as freeze_mod  # noqa: E402
 
 CONFIGS = {  # 이름: (검색 방식, LLM 사용)
     "C0": ("trigram", False), "C1": ("vector", False), "C2": ("hybrid", False),
@@ -329,7 +337,37 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.0, help="LLM 사용 구성에서 문항 사이 대기(초). 무료 분당 한도 보호")
     ap.add_argument("--judge", type=int, default=0, help="충실도 판정 횟수 K(0이면 안 함, 보통 3). LLM 호출이 문항당 K회 늘어납니다")
     ap.add_argument("--note", default="")
+    ap.add_argument("--freeze", action="store_true", help="코드·평가셋 상태를 eval/freeze.json 에 기록하고 끝냅니다")
+    ap.add_argument("--keycheck", action="store_true", help="평가셋 형식과 정답 키(DB)를 점검하고 끝냅니다. 비용 없음")
+    ap.add_argument("--allow-unfrozen", action="store_true", help="동결 확인 없이 test 실행(결과에 기록됨)")
+    ap.add_argument("--again", action="store_true", help="같은 구성의 test 결과가 있어도 다시 실행(결과에 기록됨)")
     a = ap.parse_args()
+    if a.freeze:
+        st = freeze_mod.write_freeze(ROOT, a.note)
+        print("동결 기록 저장: eval/freeze.json (커밋 %s, 파일 %d개). 커밋하십시오." % (st["git_commit"], len(st["files"])))
+        return 0
+    if a.keycheck:
+        import validate_dataset
+        return validate_dataset.main()
+    freeze_state = {"checked": False}
+    if a.split in ("test", "all"):
+        ok, reasons = freeze_mod.check_freeze(ROOT)
+        freeze_state = {"checked": True, "frozen_ok": ok, "reasons": reasons, "allow_unfrozen": a.allow_unfrozen, "again": a.again}
+        if not ok and not a.allow_unfrozen:
+            print("검증용 측정을 시작하지 않습니다(동결 확인 실패):")
+            for r in reasons:
+                print(" -", r)
+            print("의도한 변경이면 --freeze 로 다시 기록하고 이력에 사유를 남기십시오.")
+            return 1
+        prev = sorted((ROOT / "eval" / "runs").glob(f"*_{a.config}_{a.split}.json")) if (ROOT / "eval" / "runs").exists() else []
+        if prev and not a.again:
+            print(f"같은 구성({a.config})의 {a.split} 결과가 이미 있어 시작하지 않습니다: " + ", ".join(p.name for p in prev))
+            print("검증용은 구성마다 1회 측정이 원칙입니다. 반복이 필요하면 --repeat 를 쓰고, 다시 하려면 --again 을 붙이십시오.")
+            return 1
+        import validate_dataset
+        if validate_dataset.main() != 0:
+            print("평가셋 점검이 실패해 시작하지 않습니다.")
+            return 1
     if a.split in ("test", "all"):
         print("주의: 검증용(test) 문항은 최종 측정 1회에만 사용하십시오. 5초 안에 취소할 수 있습니다.")
         time.sleep(5)
@@ -379,6 +417,7 @@ def main():
         print(f"반복 {rep + 1}/{a.repeat} 완료")
 
     out = {"run_id": f"{stamp}_{a.config}_{a.split}", "git_commit": git_commit(), "dataset_version": "v1", "split": a.split,
+           "freeze": freeze_state, "dataset_hash": {k: v for k, v in freeze_mod.current_state(ROOT)["files"].items() if k.startswith("eval/datasets")},
            "models": {"llm_primary": s.gemini_model if uses_llm else None,
                       "llm_fallback": s.groq_model if uses_llm else None, "embedding": s.embedding_model if retrieval != "trigram" else None, "judge": (s.gemini_model + " / " + s.groq_model + " (K=%d)" % a.judge) if a.judge else None},
            "config": {"name": a.config, "retrieval": retrieval, "top_k": 5}, "repeat": a.repeat, "runs": runs, "notes": a.note}
