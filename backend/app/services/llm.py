@@ -26,6 +26,9 @@ def set_llm_override(fn: Optional[LlmFn]) -> None:
 SYSTEM = (
     "당신은 대형폐기물 품목 매칭 도우미입니다. 각 줄의 입력 문구에 가장 맞는 후보 번호(n)를 고릅니다.\n"
     "규칙: 후보 목록에 있는 번호만 선택합니다. 확실하지 않으면 n을 null로 둡니다. "
+    "(1) 입력에 규격·크기·인원수·용량·단수 등 규격을 정할 단서가 없고 후보들이 규격만 다르면 규격을 임의로 고르지 말고 n을 null로 둡니다. "
+    "(2) 후보가 입력과 다른 종류의 물건이면(예: 제습기와 가습기) n을 null로 둡니다. "
+    "(3) 입력이 품목과 규격을 모두 특정하거나, 같은 종류의 후보가 규격 구분 없이 하나뿐일 때만 번호를 고릅니다. "
     "금액·수수료는 언급하지 않습니다. reason은 한국어 한 문장(40자 이내)입니다.\n"
     '출력은 JSON 배열만: [{"line_no":1,"n":2,"reason":"..."}]'
 )
@@ -37,7 +40,7 @@ def _build_chain():
     if s.gemini_api_key:
         from langchain_google_genai import ChatGoogleGenerativeAI
         models.append(ChatGoogleGenerativeAI(model=s.gemini_model, google_api_key=s.gemini_api_key,
-                                             temperature=0, timeout=s.llm_timeout_seconds, max_retries=0))
+                                             timeout=s.llm_timeout_seconds, max_retries=0))
     if s.groq_api_key:
         from langchain_groq import ChatGroq
         models.append(ChatGroq(model=s.groq_model, api_key=s.groq_api_key, temperature=0,
