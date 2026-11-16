@@ -17,7 +17,7 @@ interface DraftState {
   municipalityCode: string | null;
   lines: DraftLine[];
   setMunicipality: (code: string | null) => void;
-  addItem: (item: SearchItem) => void;
+  addItem: (item: SearchItem, quantity?: number) => void;
   setQuantity: (itemId: number, quantity: number) => void;
   setOperatorFee: (itemId: number, won: number) => void;
   removeLine: (itemId: number) => void;
@@ -31,11 +31,11 @@ export const useDraftStore = create<DraftState>((set) => ({
   lines: [],
   setMunicipality: (code) =>
     set((s) => (s.municipalityCode === code ? s : { municipalityCode: code, lines: [] })),
-  addItem: (item) =>
+  addItem: (item, quantity = 1) =>
     set((s) => {
       const found = s.lines.find((l) => l.itemId === item.item_id);
       if (found)
-        return { lines: s.lines.map((l) => (l.itemId === item.item_id ? { ...l, quantity: Math.min(99, l.quantity + 1) } : l)) };
+        return { lines: s.lines.map((l) => (l.itemId === item.item_id ? { ...l, quantity: Math.min(99, l.quantity + quantity) } : l)) };
       if (s.lines.length >= MAX_LINES) return s;
       return {
         lines: [
@@ -47,7 +47,7 @@ export const useDraftStore = create<DraftState>((set) => ({
             spec: item.spec,
             unitFeeWon: item.fee_won,
             feeType: item.fee_type,
-            quantity: 1,
+            quantity: Math.max(1, Math.min(99, quantity)),
             operatorFeeWon: 0,
           },
         ],

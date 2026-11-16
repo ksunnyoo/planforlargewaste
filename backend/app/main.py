@@ -33,5 +33,6 @@ def health():
         "status": "ok" if db == "ok" else "degraded",
         "version": VERSION,
         "db": db,
-        "llm": {"primary": "unknown", "fallback": "unknown"},  # LLM 연동 후 갱신
+        "llm": {"primary": "configured" if settings.gemini_api_key else "not_configured",
+                "fallback": "configured" if settings.groq_api_key else "not_configured"},
     }

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useCreateEstimate } from "../api/hooks";
 import DraftList from "../components/DraftList";
 import ItemSearch from "../components/ItemSearch";
+import TextParse from "../components/TextParse";
 import MunicipalityPicker from "../components/MunicipalityPicker";
 import { Banner, ErrorBox } from "../components/ui";
 import { useDraftStore } from "../store/draftStore";
@@ -34,6 +35,7 @@ export default function InputPage() {
         버리실 물건을 검색해 담으면 지자체 수수료를 계산합니다.
       </Banner>
       <MunicipalityPicker />
+      <TextParse />
       <ItemSearch />
       {code && <DraftList onSubmit={submit} submitting={create.isPending} />}
       {create.isError && <ErrorBox message={create.error.message} onRetry={submit} />}

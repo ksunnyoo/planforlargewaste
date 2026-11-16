@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "./client";
-import type { Estimate, EstimateRequest, Municipality, SearchItem } from "./types";
+import type { Estimate, EstimateRequest, Municipality, ParseResult, SearchItem } from "./types";
 
 export function useMunicipalities() {
   return useQuery<Municipality[], ApiError>({
@@ -25,6 +25,12 @@ export function useItemSearch(code: string | null, q: string) {
 export function useCreateEstimate() {
   return useMutation<Estimate, ApiError, EstimateRequest>({
     mutationFn: async (body) => (await api.post<Estimate>("/api/v1/estimates", body)).data,
+  });
+}
+
+export function useParseText() {
+  return useMutation<ParseResult, ApiError, { municipality_code: string; text: string }>({
+    mutationFn: async (body) => (await api.post<ParseResult>("/api/v1/estimates/parse", body)).data,
   });
 }
 

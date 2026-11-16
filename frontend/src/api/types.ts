@@ -21,6 +21,30 @@ export interface SearchItem {
   score: number;
 }
 
+export interface ParseCandidate extends SearchItem {
+  reason: string;
+}
+
+export interface ParseLine {
+  line_no: number;
+  raw_text: string;
+  quantity: number;
+  status: "matched" | "ambiguous" | "unmatched";
+  needs_review: boolean;
+  selected_item_id: number | null;
+  candidates: ParseCandidate[];
+  note: string | null;
+}
+
+export interface ParseResult {
+  municipality_code: string;
+  lines: ParseLine[];
+  degraded: boolean;
+  degraded_reason: string | null;
+  data_base_date: string | null;
+  disclaimer: string;
+}
+
 export interface EstimateLineOut {
   line_no: number;
   raw_text: string | null;

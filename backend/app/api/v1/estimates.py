@@ -9,14 +9,18 @@ import string
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field, StrictInt
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_engine
 from app.core.errors import AppError
+from app.core import config
+from app.services import usage
 from app.services.fee_calculator import FeeCalculationError, LineInput, calculate
+from app.services.line_parser import MAX_LINES, parse_lines
+from app.services.matcher import match_lines
 
 router = APIRouter()
 
@@ -160,3 +164,33 @@ def get_estimate(public_id: str):
         if row["expires_at"] <= row["now"]:
             raise AppError(410, "ESTIMATE_EXPIRED", "만료된 견적입니다.")
         return load_response(conn, row["id"], public_id)
+
+
+class ParseIn(BaseModel):
+    municipality_code: str = Field(..., min_length=1, max_length=20)
+    text: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/estimates/parse")
+def parse_estimate(body: ParseIn, request: Request):
+    """API-04 문장 입력 분석. 저장하지 않는다."""
+    wait = usage.check_rate(request.client.host if request.client else "unknown",
+                            config.settings.rate_limit_per_minute)
+    if wait is not None:
+        raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
+                       headers={"Retry-After": str(wait)})
+    parsed = parse_lines(body.text)
+    if not parsed:
+        raise AppError(400, "VALIDATION_ERROR", "입력 내용이 비어 있습니다.")
+    if len(parsed) > MAX_LINES:
+        raise AppError(400, "VALIDATION_ERROR", "품목은 최대 %d줄까지 입력할 수 있습니다." % MAX_LINES)
+    with get_engine().connect() as conn:
+        m = conn.execute(text("SELECT data_base_date FROM municipalities WHERE code = :c"),
+                         {"c": body.municipality_code}).mappings().first()
+        if m is None:
+            raise AppError(404, "MUNICIPALITY_NOT_FOUND", "지원하지 않는 지자체입니다.")
+        lines, degraded, reason = match_lines(conn, body.municipality_code, parsed)
+    return {"municipality_code": body.municipality_code, "lines": lines,
+            "degraded": degraded, "degraded_reason": reason,
+            "data_base_date": m["data_base_date"].isoformat() if m["data_base_date"] else None,
+            "disclaimer": DISCLAIMER}

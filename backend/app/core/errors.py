@@ -8,7 +8,9 @@ from sqlalchemy.exc import OperationalError
 
 
 class AppError(Exception):
-    def __init__(self, status: int, code: str, message: str, detail: Optional[List[Any]] = None):
+    def __init__(self, status: int, code: str, message: str, detail: Optional[List[Any]] = None,
+                 headers: Optional[dict] = None):
+        self.headers = headers
         self.status = status
         self.code = code
         self.message = message
@@ -25,7 +27,8 @@ def error_body(code: str, message: str, detail: Optional[List[Any]] = None) -> d
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError):
-        return JSONResponse(status_code=exc.status, content=error_body(exc.code, exc.message, exc.detail))
+        return JSONResponse(status_code=exc.status, content=error_body(exc.code, exc.message, exc.detail),
+                            headers=exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):
