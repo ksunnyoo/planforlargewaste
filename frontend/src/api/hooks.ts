@@ -42,3 +42,16 @@ export function useEstimate(publicId: string | undefined) {
     queryFn: async () => (await api.get<Estimate>(`/api/v1/estimates/${encodeURIComponent(publicId ?? "")}`)).data,
   });
 }
+
+export type FeedbackType = "wrong_item" | "wrong_fee" | "procedure_issue" | "other";
+
+export function useSendFeedback(publicId: string) {
+  return useMutation<
+    { feedback_id: number; status: string },
+    ApiError,
+    { type: FeedbackType; line_no?: number; comment?: string }
+  >({
+    mutationFn: async (body) =>
+      (await api.post(`/api/v1/estimates/${encodeURIComponent(publicId)}/feedback`, body)).data,
+  });
+}

@@ -5,6 +5,7 @@ import type { Estimate } from "../api/types";
 import { estimateToText } from "../lib/copyText";
 import { dateKo, DISCLAIMER, feeLabel, SPEC_MISSING, won } from "../lib/format";
 import { useDraftStore } from "../store/draftStore";
+import FeedbackCard from "./FeedbackCard";
 import { MunicipalityNotices, SupportBadge } from "./MunicipalityPicker";
 import { Badge, Banner, Button, Card, Icon } from "./ui";
 
@@ -224,6 +225,8 @@ export default function EstimateView({ estimate: e, readOnly }: { estimate: Esti
       </Card>
 
       <ProcedurePanel e={e} />
+
+      <FeedbackCard estimate={e} />
 
       <Card className="text-xs leading-relaxed text-muted">
         <p className="font-semibold text-slate-700">{DISCLAIMER}</p>

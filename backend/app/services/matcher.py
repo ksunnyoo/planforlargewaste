@@ -10,7 +10,7 @@ from sqlalchemy.engine import Connection
 
 from app.core import config
 from app.services import usage
-from app.services.item_search import search_items
+from app.services.item_search import search_items, search_items_mode
 from app.services.line_parser import ParsedLine
 from app.services.llm import LlmUnavailable, choose_candidates
 
@@ -31,7 +31,7 @@ def _clear_winner(cands: List[dict]) -> bool:
 def _search(conn: Connection, code: str, query: str) -> List[dict]:
     """전체 문구로 못 찾으면 단어별로 검색해 합친다(예: "3인용 소파" → "소파" 후보 + "3인용" 후보).
     합친 결과는 점수를 낮춰 자동 선택(matched)이 되지 않게 하고 LLM·사용자 선택으로 넘긴다."""
-    found = search_items(conn, code, query, FETCH_LIMIT)
+    found = search_items_mode(conn, code, query, FETCH_LIMIT)  # 기본 trigram, 설정에 따라 벡터·하이브리드
     if found:
         return found
     merged = {}

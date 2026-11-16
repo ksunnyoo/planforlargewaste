@@ -4,7 +4,9 @@
   uv run --project backend python eval/run_eval.py --config C0 --split dev
   uv run --project backend python eval/run_eval.py --config C3 --split dev --repeat 1 --sleep 4
 
-구성: C0 = 검색만(LLM 없음), C3 = 검색 + LLM 후보 선택(+ 절차 질문은 LLM 답변). 벡터 검색 구성(C1·C2)은 임베딩 구축 후 추가.
+구성(LLM 없는 구성은 검색 지표만 의미가 큼):
+  C0 trigram / C1 벡터 / C2 하이브리드(RRF) / C3 trigram + LLM 후보 선택 / C4 하이브리드 + LLM 후보 선택.
+  C1·C2·C4는 임베딩이 적재되어 있어야 합니다(scripts/build_embeddings.py). 계획서 6절의 'C3 = C2 + LLM'은 여기서 C4입니다.
 --split test 는 최종 측정용입니다. 결과를 본 뒤 평가셋·설정을 고치면 이력에 기록하십시오(평가 계획서 3.2절).
 실행 중 LLM 호출 한도를 위해 DAILY_LLM_LIMIT을 이 실행에서만 크게 올립니다. 키 값은 기록하지 않습니다.
 """
@@ -24,6 +26,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from load_to_db import read_env  # noqa: E402
 
+CONFIGS = {  # 이름: (검색 방식, LLM 사용)
+    "C0": ("trigram", False), "C1": ("vector", False), "C2": ("hybrid", False),
+    "C3": ("trigram", True), "C4": ("hybrid", True),
+}
+
 DS = ROOT / "eval" / "datasets"
 KST = timezone(timedelta(hours=9))
 BOOT = 1000
@@ -33,7 +40,7 @@ def load_env_into_settings():
     from app.core import config
     env = read_env(ROOT / "backend" / ".env")
     s = config.settings
-    for k in ("database_url", "gemini_api_key", "groq_api_key", "gemini_model", "groq_model"):
+    for k in ("database_url", "gemini_api_key", "groq_api_key", "gemini_model", "groq_model", "embedding_model"):
         v = env.get(k.upper())
         if v:
             setattr(s, k, v)
@@ -101,9 +108,9 @@ def run_matching(cases, config, sleep):
     from app.services.llm import LlmUnavailable, set_llm_override
     from app.services.matcher import FETCH_LIMIT, _search, match_lines
 
-    if config == "C0":
+    if not CONFIGS[config][1]:
         def off(batch):
-            raise LlmUnavailable("C0: LLM 사용 안 함")
+            raise LlmUnavailable(config + ": LLM 사용 안 함")
         set_llm_override(off)
     out = []
     with get_engine().connect() as conn:
@@ -118,7 +125,7 @@ def run_matching(cases, config, sleep):
             retrieval = [[key_of(code, r) for r in _search(conn, code, pl.query)[:FETCH_LIMIT]] if pl.query else [] for pl in parsed]
             out.append({"case": c, "lines": lines, "retrieval": retrieval, "degraded": degraded,
                         "degraded_reason": reason, "latency_ms": latency, "n_parsed": len(parsed)})
-            if config != "C0" and sleep and not degraded:
+            if CONFIGS[config][1] and sleep and not degraded:
                 time.sleep(sleep)
     return out
 
@@ -287,7 +294,7 @@ def score_procedure(results):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", choices=["C0", "C3"], default="C3")
+    ap.add_argument("--config", choices=list(CONFIGS), default="C3")
     ap.add_argument("--split", choices=["dev", "test", "all"], default="dev")
     ap.add_argument("--layer", choices=["matching", "procedure", "all"], default="all")
     ap.add_argument("--repeat", type=int, default=1)
@@ -301,14 +308,27 @@ def main():
     if not s.database_url:
         print("backend/.env 에 DATABASE_URL이 없습니다.")
         return 1
-    if a.config == "C3" and not (s.gemini_api_key or s.groq_api_key):
-        print("C3는 LLM 키가 필요합니다(backend/.env).")
+    retrieval, uses_llm = CONFIGS[a.config]
+    if uses_llm and not (s.gemini_api_key or s.groq_api_key):
+        print(a.config + "는 LLM 키가 필요합니다(backend/.env).")
         return 1
+    if retrieval != "trigram":
+        if not s.gemini_api_key:
+            print(a.config + "는 질의 임베딩에 GEMINI_API_KEY가 필요합니다(backend/.env).")
+            return 1
+        from sqlalchemy import text as _t
+        from app.core.database import get_engine
+        with get_engine().connect() as c:
+            n = c.execute(_t("SELECT count(*) FROM item_catalog WHERE embedding IS NOT NULL")).scalar()
+        if not n:
+            print("item_catalog에 임베딩이 없습니다. 먼저 scripts/build_embeddings.py를 실행하십시오.")
+            return 1
+    s.retrieval_mode = retrieval
 
     from app.services.llm import set_procedure_override  # noqa: F401
     pick = lambda rows: [r for r in rows if a.split == "all" or r["split"] == a.split]
     matching = pick(load_jsonl(DS / "v1" / "matching.jsonl")) if a.layer in ("matching", "all") else []
-    procedure = pick(load_jsonl(DS / "v1" / "procedure.jsonl")) if a.layer in ("procedure", "all") and a.config == "C3" else []
+    procedure = pick(load_jsonl(DS / "v1" / "procedure.jsonl")) if a.layer in ("procedure", "all") and uses_llm else []
 
     stamp = datetime.now(KST).strftime("%Y%m%dT%H%M")
     runs = []
@@ -324,9 +344,9 @@ def main():
         print(f"반복 {rep + 1}/{a.repeat} 완료")
 
     out = {"run_id": f"{stamp}_{a.config}_{a.split}", "git_commit": git_commit(), "dataset_version": "v1", "split": a.split,
-           "models": {"llm_primary": s.gemini_model if a.config == "C3" else None,
-                      "llm_fallback": s.groq_model if a.config == "C3" else None, "embedding": None, "judge": None},
-           "config": {"name": a.config, "retrieval": "trigram", "top_k": 5}, "repeat": a.repeat, "runs": runs, "notes": a.note}
+           "models": {"llm_primary": s.gemini_model if uses_llm else None,
+                      "llm_fallback": s.groq_model if uses_llm else None, "embedding": s.embedding_model if retrieval != "trigram" else None, "judge": None},
+           "config": {"name": a.config, "retrieval": retrieval, "top_k": 5}, "repeat": a.repeat, "runs": runs, "notes": a.note}
     d = ROOT / "eval" / "runs"
     d.mkdir(exist_ok=True)
     path = d / f"{out['run_id']}.json"
