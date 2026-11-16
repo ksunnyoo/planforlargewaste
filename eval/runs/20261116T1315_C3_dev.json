@@ -1,0 +1,256 @@
+{
+  "run_id": "20261116T1315_C3_dev",
+  "git_commit": "0b147d5",
+  "dataset_version": "v1",
+  "split": "dev",
+  "models": {
+    "llm_primary": "gemini-3.5-flash-lite",
+    "llm_fallback": "openai/gpt-oss-120b",
+    "embedding": null,
+    "judge": "gemini-3.5-flash-lite / openai/gpt-oss-120b (K=3)"
+  },
+  "config": {
+    "name": "C3",
+    "retrieval": "trigram",
+    "top_k": 5
+  },
+  "repeat": 1,
+  "runs": [
+    {
+      "repeat_index": 0,
+      "procedure_metrics": {
+        "L3_over_refusal_rate(answerable→refused)": {
+          "value": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "n_lines": 7,
+          "n_cases": 7
+        },
+        "L3_citation_present_rate": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 7
+        },
+        "L3_gold_source_hit_rate": {
+          "value": 0.8571,
+          "ci95": [
+            0.5714,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 7
+        },
+        "L3_must_include_rate": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 7
+        },
+        "L3_refusal_accuracy(unanswerable)": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 3,
+          "n_cases": 3
+        },
+        "L3_unsupported_accuracy": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 1,
+          "n_cases": 1
+        },
+        "llm_unavailable_cases": 0,
+        "latency_ms": {
+          "p50": 1405,
+          "p95": 1919
+        },
+        "note": "충실도는 --judge K 로 측정(미지정 시 미실시)",
+        "L3_faithfulness_rate(judge majority)": {
+          "value": 1.0,
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "n_lines": 7,
+          "n_cases": 7
+        },
+        "L3_judge_unjudged_cases": 0,
+        "L3_judge_unanimous_rate": 1.0
+      },
+      "procedure_cases": [
+        {
+          "case_id": "p-001",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "대형폐기물 배출 신고는 담당 구역별 청소대행업체에 전화하거나, 성남시 대형폐기물 인터넷 배출신고 사이트, 또는 모바일 앱 '빼기'를 통해 하실 수 있습니다.",
+          "cited_sections": [
+            "신고처"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-003",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "수수료는 계좌 입금이나 카드 결제로 납부할 수 있으며, 현장 결제도 가능합니다.",
+          "cited_sections": [
+            "신고절차"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-004",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "접수번호를 기재하여 배출물품에 부착한 후 배출하시면 됩니다.",
+          "cited_sections": [
+            "신고절차"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-005",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "전화 신고는 월요일부터 금요일까지 09시부터 18시까지 가능합니다.",
+          "cited_sections": [
+            "신고처"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-007",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "배출일 3~4일 전에 콜센터(1599-0903) 또는 폐가전제품 무상방문수거서비스(https://www.15990903.or.kr/)를 통해 사전 배출예약을 하시면 됩니다.",
+          "cited_sections": [
+            "대형폐가전 무상 방문 수거"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-008",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "아니요, 무상 방문 수거는 매주 일요일에 휴무이므로 일요일에는 수거하지 않습니다.",
+          "cited_sections": [
+            "대형폐가전 무상 방문 수거"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-010",
+          "kind": "answerable",
+          "answerable": true,
+          "answer": "공동주택의 경우 단지 내 집하장에 내놓으시면 됩니다.",
+          "cited_sections": [
+            "신고절차"
+          ],
+          "faithfulness": {
+            "votes": [
+              true,
+              true,
+              true
+            ],
+            "supported": true,
+            "valid": 3,
+            "unanimous": true
+          }
+        },
+        {
+          "case_id": "p-011",
+          "kind": "unanswerable",
+          "answerable": false,
+          "answer": "해당 내용은 안내문에서 확인되지 않습니다. 지자체에 문의하십시오."
+        },
+        {
+          "case_id": "p-012",
+          "kind": "unanswerable",
+          "answerable": false,
+          "answer": "해당 내용은 안내문에서 확인되지 않습니다. 지자체에 문의하십시오."
+        },
+        {
+          "case_id": "p-014",
+          "kind": "unanswerable",
+          "answerable": false,
+          "answer": "해당 내용은 안내문에서 확인되지 않습니다. 지자체에 문의하십시오."
+        },
+        {
+          "case_id": "p-016",
+          "kind": "unsupported",
+          "answerable": false,
+          "answer": "이 지역은 수수료만 제공합니다. 절차는 해당 지자체의 안내를 확인하십시오."
+        }
+      ]
+    }
+  ],
+  "notes": ""
+}

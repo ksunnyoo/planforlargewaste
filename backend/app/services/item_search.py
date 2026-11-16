@@ -74,6 +74,9 @@ ORDER BY c.embedding <=> CAST(:vec AS vector), wi.id
 LIMIT :limit
 """)
 
+# 질의 임베딩이 실패해 trigram으로 대신한 횟수. 평가(eval)가 이 값을 읽어 벡터 검색이 실제로 쓰였는지 확인한다.
+EMBED_FALLBACKS = {"count": 0}
+
 VECTOR_ONLY_CAP = 0.7  # 벡터로만 찾은 후보는 점수를 낮춰 자동 확정(matched)이 되지 않게 한다
 RRF_K = 60
 
@@ -111,6 +114,7 @@ def search_items_mode(conn: Connection, municipality_code: str, q: str, limit: i
     try:
         sem = vector_search(conn, municipality_code, q, limit)
     except embeddings.EmbeddingUnavailable:
+        EMBED_FALLBACKS["count"] += 1
         return search_items(conn, municipality_code, q, limit)
     if mode == "vector":
         return sem[:limit]

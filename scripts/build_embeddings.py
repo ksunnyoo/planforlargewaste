@@ -57,7 +57,7 @@ def main():
             print(f"[OK ] {s.embedding_model} 차원 {len(v)}")
             return 0
         except Exception as e:
-            print("[실패]", type(e).__name__, str(e)[:200].replace("\n", " "))
+            print("[실패]", type(e).__name__, str(e)[:1500].replace("\n", " "))
             return 1
 
     if not s.database_url:

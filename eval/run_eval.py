@@ -107,6 +107,7 @@ def run_matching(cases, config, sleep):
     from app.services import usage
     from app.services.line_parser import parse_lines
     from app.services.llm import LlmUnavailable, set_llm_override
+    from app.services.item_search import EMBED_FALLBACKS
     from app.services.matcher import FETCH_LIMIT, _search, match_lines
 
     if not CONFIGS[config][1]:
@@ -119,15 +120,19 @@ def run_matching(cases, config, sleep):
             code = c["municipality_code"]
             usage.reset_for_tests()
             parsed = parse_lines(c["input"])
+            fb0 = EMBED_FALLBACKS["count"]
             t0 = time.perf_counter()
             lines, degraded, reason = match_lines(conn, code, parsed)
             latency = int((time.perf_counter() - t0) * 1000)
             # L1: 검색만(상위 5)
             retrieval = [[key_of(code, r) for r in _search(conn, code, pl.query)[:FETCH_LIMIT]] if pl.query else [] for pl in parsed]
             out.append({"case": c, "lines": lines, "retrieval": retrieval, "degraded": degraded,
-                        "degraded_reason": reason, "latency_ms": latency, "n_parsed": len(parsed)})
+                        "degraded_reason": reason, "latency_ms": latency, "n_parsed": len(parsed),
+                        "embedding_fallbacks": EMBED_FALLBACKS["count"] - fb0})
             if CONFIGS[config][1] and sleep and not degraded:
                 time.sleep(sleep)
+            if CONFIGS[config][0] != "trigram":
+                time.sleep(0.7 * len(parsed))  # 무료 임베딩 한도(분당 100회) 보호: 질의 임베딩 호출을 분당 약 85회 이하로
     return out
 
 
@@ -239,13 +244,27 @@ def run_procedure(cases, sleep):
                 if not sup:
                     res = {"answerable": False, "answer": UNSUPPORTED_ANSWER, "citations": []}
                 else:
-                    res = answer_question(fetch_chunks(conn, code), c["question"])
+                    chunks = fetch_chunks(conn, code)
+                    res = answer_question(chunks, c["question"])
+                    full = {ch["id"]: ch["content"] for ch in chunks}  # 충실도 판정에는 잘리지 않은 근거 전문을 쓴다
             except LlmUnavailable as e:
                 res, err = {"answerable": None, "answer": "", "citations": []}, str(e)
-            out.append({"case": c, "res": res, "error": err, "latency_ms": int((time.perf_counter() - t0) * 1000)})
+            out.append({"case": c, "res": res, "error": err, "latency_ms": int((time.perf_counter() - t0) * 1000),
+                        "evidence_full": [full[x["chunk_id"]] for x in res["citations"] if x["chunk_id"] in full] if sup else []})
             if sleep:
                 time.sleep(sleep)
     return out
+
+
+def add_faithfulness(results, k, sleep):
+    """답변이 나온 '답변 가능' 문항에 충실도 판정(K회 다수결)을 붙인다."""
+    from app.services.judge import judge_faithfulness
+    for r in results:
+        res = r["res"]
+        if r["case"]["kind"] == "answerable" and not r["error"] and res["answerable"] is True:
+            r["faith"] = judge_faithfulness(res["answer"], r["evidence_full"] or [x["excerpt"] for x in res["citations"]], k)
+            if sleep:
+                time.sleep(sleep)
 
 
 def score_procedure(results):
@@ -255,7 +274,7 @@ def score_procedure(results):
     unsup = [r for r in results if r["case"]["kind"] == "unsupported"]
     errs = [r for r in results if r["error"]]
     detail = []
-    cit_ok, src_hit, facts_ok, over_ref = [], [], [], []
+    cit_ok, src_hit, facts_ok, over_ref, faith = [], [], [], [], []
     for r in ans_cases:
         if r["error"]:
             continue
@@ -267,8 +286,11 @@ def score_procedure(results):
         src_hit.append((1 if answered and all(g in secs for g in c["gold_sources"]) else 0, 1))
         blob = res["answer"] + " " + " ".join(x["excerpt"] for x in res["citations"])
         facts_ok.append((1 if answered and all(f in blob for f in c["must_include"]) else 0, 1))
+        f = r.get("faith")
+        if f and f["supported"] is not None:
+            faith.append((1 if f["supported"] else 0, 1))
         detail.append({"case_id": c["case_id"], "kind": c["kind"], "answerable": res["answerable"], "answer": res["answer"],
-                       "cited_sections": sorted(secs)})
+                       "cited_sections": sorted(secs), "faithfulness": f})
     refuse_ok = []
     for r in un_cases:
         if r["error"]:
@@ -289,7 +311,12 @@ def score_procedure(results):
          "L3_refusal_accuracy(unanswerable)": boot_ci(refuse_ok),
          "L3_unsupported_accuracy": boot_ci(unsup_ok),
          "llm_unavailable_cases": len(errs), "latency_ms": {"p50": pct(lat, 0.5), "p95": pct(lat, 0.95)},
-         "note": "충실도(Faithfulness)는 별도 판정 단계에서 측정(미실시)"}
+         "note": "충실도는 --judge K 로 측정(미지정 시 미실시)"}
+    if faith:
+        m["L3_faithfulness_rate(judge majority)"] = boot_ci(faith)
+        m["L3_judge_unjudged_cases"] = sum(1 for r in results if r.get("faith") and r["faith"]["supported"] is None)
+        m["L3_judge_unanimous_rate"] = round(sum(1 for r in results if r.get("faith") and r["faith"]["unanimous"]) /
+                                             max(1, sum(1 for r in results if r.get("faith") and r["faith"]["supported"] is not None)), 4)
     return m, detail
 
 
@@ -300,6 +327,7 @@ def main():
     ap.add_argument("--layer", choices=["matching", "procedure", "all"], default="all")
     ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--sleep", type=float, default=0.0, help="LLM 사용 구성에서 문항 사이 대기(초). 무료 분당 한도 보호")
+    ap.add_argument("--judge", type=int, default=0, help="충실도 판정 횟수 K(0이면 안 함, 보통 3). LLM 호출이 문항당 K회 늘어납니다")
     ap.add_argument("--note", default="")
     a = ap.parse_args()
     if a.split in ("test", "all"):
@@ -338,15 +366,21 @@ def main():
         if matching:
             res = run_matching(matching, a.config, a.sleep)
             rec["matching_metrics"], rec["matching_cases"] = score_matching(res)
+            rec["embedding_fallback_queries"] = sum(r.get("embedding_fallbacks", 0) for r in res)
+            if rec["embedding_fallback_queries"]:
+                print(f"경고: 질의 임베딩 실패로 trigram으로 대신한 검색이 {rec['embedding_fallback_queries']}건입니다. "
+                      "이 실행의 벡터·하이브리드 결과는 순수한 값이 아니므로 한도가 풀린 뒤 다시 실행하십시오.")
         if procedure:
             res = run_procedure(procedure, a.sleep)
+            if a.judge:
+                add_faithfulness(res, a.judge, a.sleep)
             rec["procedure_metrics"], rec["procedure_cases"] = score_procedure(res)
         runs.append(rec)
         print(f"반복 {rep + 1}/{a.repeat} 완료")
 
     out = {"run_id": f"{stamp}_{a.config}_{a.split}", "git_commit": git_commit(), "dataset_version": "v1", "split": a.split,
            "models": {"llm_primary": s.gemini_model if uses_llm else None,
-                      "llm_fallback": s.groq_model if uses_llm else None, "embedding": s.embedding_model if retrieval != "trigram" else None, "judge": None},
+                      "llm_fallback": s.groq_model if uses_llm else None, "embedding": s.embedding_model if retrieval != "trigram" else None, "judge": (s.gemini_model + " / " + s.groq_model + " (K=%d)" % a.judge) if a.judge else None},
            "config": {"name": a.config, "retrieval": retrieval, "top_k": 5}, "repeat": a.repeat, "runs": runs, "notes": a.note}
     d = ROOT / "eval" / "runs"
     d.mkdir(exist_ok=True)
