@@ -8,7 +8,7 @@ import json
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field, StrictInt
@@ -250,3 +250,48 @@ def ask_procedure(body: QaIn, request: Request):
         except LlmUnavailable:
             raise AppError(503, "LLM_UNAVAILABLE", "답변 생성을 사용할 수 없습니다. 잠시 후 다시 시도하십시오.")
     return {**res, "data_base_date": base, "disclaimer": DISCLAIMER}
+
+
+class FeedbackIn(BaseModel):
+    line_no: Optional[StrictInt] = Field(None, ge=1, le=30)
+    type: Literal["wrong_item", "wrong_fee", "procedure_issue", "other"]
+    comment: Optional[str] = Field(None, max_length=300)
+    suggested_item_id: Optional[StrictInt] = Field(None, ge=1)
+
+
+@router.post("/estimates/{public_id}/feedback", status_code=201)
+def submit_feedback(public_id: str, body: FeedbackIn, request: Request):
+    """API-07 피드백 제출. 견적 소유자 확인은 하지 않고(링크를 아는 사람) 요청 제한으로 남용을 막는다."""
+    wait = usage.check_rate((request.client.host if request.client else "unknown") + ":fb",
+                            config.settings.rate_limit_per_minute)
+    if wait is not None:
+        raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
+                       headers={"Retry-After": str(wait)})
+    with get_engine().begin() as conn:
+        est = conn.execute(text("""
+            SELECT id, municipality_code, expires_at, now() AS now FROM estimates WHERE public_id = :p"""),
+            {"p": public_id[:40]}).mappings().first()
+        if not est:
+            raise AppError(404, "ESTIMATE_NOT_FOUND", "존재하지 않는 견적입니다.")
+        if est["expires_at"] <= est["now"]:
+            raise AppError(410, "ESTIMATE_EXPIRED", "만료된 견적입니다.")
+        if body.line_no is not None and not conn.execute(
+                text("SELECT 1 FROM estimate_lines WHERE estimate_id = :e AND line_no = :n"),
+                {"e": est["id"], "n": body.line_no}).first():
+            raise AppError(400, "VALIDATION_ERROR", "입력 내용을 확인하십시오.",
+                           [{"field": "line_no", "reason": "견적에 없는 줄 번호입니다."}])
+        if body.suggested_item_id is not None:
+            if body.type != "wrong_item":
+                raise AppError(400, "VALIDATION_ERROR", "입력 내용을 확인하십시오.",
+                               [{"field": "suggested_item_id", "reason": "품목 오류 유형에서만 제안할 수 있습니다."}])
+            if not conn.execute(text("SELECT 1 FROM waste_items WHERE id = :i AND municipality_code = :c"),
+                                {"i": body.suggested_item_id, "c": est["municipality_code"]}).first():
+                raise AppError(400, "VALIDATION_ERROR", "입력 내용을 확인하십시오.",
+                               [{"field": "suggested_item_id", "reason": "해당 지자체의 품목이 아닙니다."}])
+        comment = body.comment.strip() if body.comment else None
+        fid = conn.execute(text("""
+            INSERT INTO feedback (estimate_id, line_no, type, comment, suggested_item_id)
+            VALUES (:e, :n, :t, :c, :s) RETURNING id"""),
+            {"e": est["id"], "n": body.line_no, "t": body.type, "c": comment or None,
+             "s": body.suggested_item_id}).scalar_one()
+    return {"feedback_id": fid, "status": "received"}
