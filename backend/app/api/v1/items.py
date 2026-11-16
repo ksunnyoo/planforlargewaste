@@ -3,6 +3,7 @@ from sqlalchemy import text
 
 from app.core.database import get_engine
 from app.core.errors import AppError
+from app.core.license_gate import ensure_allowed
 from app.services.item_search import search_items
 
 router = APIRouter()
@@ -19,6 +20,7 @@ def search(
     if not query:
         raise AppError(400, "VALIDATION_ERROR", "입력 내용을 확인하십시오.",
                        [{"field": "q", "reason": "검색어를 입력하십시오."}])
+    ensure_allowed(municipality_code)
     # 검증을 먼저 끝낸 뒤에 DB 연결을 연다(검증 오류는 DB 없이도 400으로 응답).
     with get_engine().connect() as conn:
         exists = conn.execute(text("SELECT 1 FROM municipalities WHERE code = :c"),

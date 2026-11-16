@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app.core.database import get_db
+from app.core.license_gate import is_allowed
 
 router = APIRouter()
 
@@ -19,6 +20,8 @@ def list_municipalities(conn: Connection = Depends(get_db)):
     """API-02 지원 지자체 목록. 수수료 데이터가 없는 지자체는 목록에 없다(미지원)."""
     items = []
     for r in conn.execute(LIST_SQL).mappings():
+        if not is_allowed(r["code"]):
+            continue  # 이용 허락 확인 전 지자체는 숨긴다.
         items.append({
             "code": r["code"], "name": r["name"], "support_level": r["support_level"],
             "procedure_supported": r["procedure_supported"], "spec_missing": r["spec_missing"],

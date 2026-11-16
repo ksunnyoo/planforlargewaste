@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_engine
 from app.core.errors import AppError
+from app.core.license_gate import ensure_allowed
 from app.core import config
 from app.services import usage
 from app.services.fee_calculator import FeeCalculationError, LineInput, calculate
@@ -118,6 +119,7 @@ def create_estimate(body: EstimateIn, request: Request):
         raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
                        headers={"Retry-After": str(wait)})
 
+    ensure_allowed(body.municipality_code)
     with get_engine().connect() as conn:
         muni = conn.execute(text("SELECT procedure_supported FROM municipalities WHERE code = :c"),
                             {"c": body.municipality_code}).mappings().first()
@@ -210,6 +212,7 @@ def parse_estimate(body: ParseIn, request: Request):
         raise AppError(400, "VALIDATION_ERROR", "입력 내용이 비어 있습니다.")
     if len(parsed) > MAX_LINES:
         raise AppError(400, "VALIDATION_ERROR", "품목은 최대 %d줄까지 입력할 수 있습니다." % MAX_LINES)
+    ensure_allowed(body.municipality_code)
     with get_engine().connect() as conn:
         m = conn.execute(text("SELECT data_base_date FROM municipalities WHERE code = :c"),
                          {"c": body.municipality_code}).mappings().first()
@@ -235,6 +238,7 @@ def ask_procedure(body: QaIn, request: Request):
     if wait is not None:
         raise AppError(429, "RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도하십시오.",
                        headers={"Retry-After": str(wait)})
+    ensure_allowed(body.municipality_code)
     with get_engine().connect() as conn:
         muni = conn.execute(text("SELECT procedure_supported, data_base_date FROM municipalities WHERE code = :c"),
                             {"c": body.municipality_code}).mappings().first()
