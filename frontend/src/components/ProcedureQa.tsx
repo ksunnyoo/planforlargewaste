@@ -3,7 +3,7 @@ import { useAskProcedure } from "../api/hooks";
 import { dateKo } from "../lib/format";
 import { Banner, Button, Card, ErrorBox } from "./ui";
 
-const EXAMPLE_QUESTIONS = ["소파는 어디에 내놓아야 합니까?", "배출 신고는 어떻게 합니까?"];
+const EXAMPLE_QUESTIONS = ["배출 신고는 어떻게 합니까?", "신고 후 접수번호는 어디에 붙입니까?"];
 
 /** 배출 절차 질문창. 안내문에 근거가 있을 때만 답하고, 근거가 없으면 답하지 않는다. 질문은 저장하지 않는다. */
 export default function ProcedureQa({ code, procedureSupported }: { code: string | null; procedureSupported: boolean }) {
@@ -45,7 +45,7 @@ export default function ProcedureQa({ code, procedureSupported }: { code: string
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={200}
-          placeholder="예: 소파는 어디에 내놓아야 합니까?"
+          placeholder="예: 배출 신고는 어떻게 합니까?"
           className="min-h-11 w-full rounded-xl border border-line bg-white px-3 text-sm"
         />
         <Button type="submit" disabled={!question.trim() || ask.isPending} className="shrink-0">
