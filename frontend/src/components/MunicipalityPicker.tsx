@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMunicipalities } from "../api/hooks";
-import type { Municipality } from "../api/types";
+import type { License, Municipality } from "../api/types";
 import { dateKo } from "../lib/format";
 import { useDraftStore } from "../store/draftStore";
 import { Badge, Banner, Button, Card, ErrorBox, Icon, Skeleton } from "./ui";
@@ -10,6 +10,39 @@ export function SupportBadge({ m }: { m: Municipality }) {
     <Badge tone="ok" icon={<Icon name="check" className="h-3 w-3" />}>수수료 + 절차 안내</Badge>
   ) : (
     <Badge tone="gray">수수료만 제공</Badge>
+  );
+}
+
+const LICENSE_TONE: Record<License["status"], "ok" | "warn" | "gray"> = {
+  confirmed: "ok",
+  restricted: "warn",
+  unverified: "gray",
+};
+
+/** 자료 이용 조건(공공누리 유형) 표시. 지자체마다 다르며, 확인하지 못한 곳은 '확인 중'으로 보여 준다. */
+export function LicenseNotice({ m }: { m: Municipality }) {
+  const lic = m.license;
+  if (!lic) return null;
+  return (
+    <div className="rounded-xl border border-line p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">자료 이용 조건</span>
+        <Badge tone={LICENSE_TONE[lic.status]}>{lic.label}</Badge>
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted">{lic.summary}</p>
+      <p className="mt-1 text-xs text-muted">
+        출처 {lic.source_name}
+        {lic.source_url && (
+          <>
+            {" · "}
+            <a href={lic.source_url} target="_blank" rel="noreferrer" className="underline">
+              원문 보기
+            </a>
+          </>
+        )}
+        {lic.checked_at ? ` · 확인일 ${dateKo(lic.checked_at)}` : " · 확인 전"}
+      </p>
+    </div>
   );
 }
 
@@ -27,6 +60,7 @@ export function MunicipalityNotices({ m }: { m: Municipality }) {
           수수료는 참고용이며 해당 지자체에 확인하십시오.
         </Banner>
       )}
+      <LicenseNotice m={m} />
     </div>
   );
 }
@@ -109,6 +143,8 @@ export default function MunicipalityPicker() {
             >
               <span className="text-sm font-medium">{m.name}</span>
               <span className="flex items-center gap-1.5">
+                {m.license?.status === "confirmed" && <Badge tone="ok">이용 조건 확인됨</Badge>}
+                {m.license?.status === "restricted" && <Badge tone="warn">이용 제한 표시</Badge>}
                 {m.spec_missing && <Badge tone="warn">규격 정보 없음</Badge>}
                 <SupportBadge m={m} />
               </span>

@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { useCreateEstimate } from "../api/hooks";
+import { useCreateEstimate, useMunicipalities } from "../api/hooks";
 import DraftList from "../components/DraftList";
 import ItemSearch from "../components/ItemSearch";
 import TextParse from "../components/TextParse";
 import MunicipalityPicker from "../components/MunicipalityPicker";
+import ProcedureQa from "../components/ProcedureQa";
 import { Banner, ErrorBox } from "../components/ui";
 import { useDraftStore } from "../store/draftStore";
 
@@ -12,6 +13,8 @@ export default function InputPage() {
   const code = useDraftStore((s) => s.municipalityCode);
   const lines = useDraftStore((s) => s.lines);
   const create = useCreateEstimate();
+  const { data: munis } = useMunicipalities();
+  const muni = munis?.find((m) => m.code === code);
 
   function submit() {
     if (!code || lines.length === 0) return;
@@ -38,6 +41,7 @@ export default function InputPage() {
       <TextParse />
       <ItemSearch />
       {code && <DraftList onSubmit={submit} submitting={create.isPending} />}
+      {muni && <ProcedureQa code={code} procedureSupported={muni.procedure_supported} />}
       {create.isError && <ErrorBox message={create.error.message} onRetry={submit} />}
     </div>
   );

@@ -7,6 +7,7 @@ import { dateKo, DISCLAIMER, feeLabel, SPEC_MISSING, won } from "../lib/format";
 import { useDraftStore } from "../store/draftStore";
 import FeedbackCard from "./FeedbackCard";
 import { MunicipalityNotices, SupportBadge } from "./MunicipalityPicker";
+import ProcedureQa from "./ProcedureQa";
 import { Badge, Banner, Button, Card, Icon } from "./ui";
 
 function shareUrl(publicId: string) {
@@ -225,6 +226,7 @@ export default function EstimateView({ estimate: e, readOnly }: { estimate: Esti
       </Card>
 
       <ProcedurePanel e={e} />
+      {!readOnly && muni && <ProcedureQa code={e.municipality_code} procedureSupported={muni.procedure_supported} />}
 
       <FeedbackCard estimate={e} />
 

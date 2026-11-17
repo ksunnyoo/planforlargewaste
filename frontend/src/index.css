@@ -41,3 +41,35 @@ body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
   .no-print { display: none !important; }
   .print-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
 }
+
+/* 다크 모드: 화면에서만 적용한다(인쇄는 항상 밝은 색). */
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-canvas: #0e1621;
+    --color-ink: #e8eef5;
+    --color-muted: #9fb0c3;
+    --color-line: #2a3646;
+    --color-brand-soft: #123a36;
+    --color-ok: #4ade80;
+    --color-ok-soft: #12301f;
+    --color-warn: #fbbf24;
+    --color-warn-soft: #3a2a10;
+    --color-bad: #f87171;
+    --color-bad-soft: #3b1a1a;
+    --color-info: #93b4ff;
+    --color-info-soft: #172a52;
+  }
+  :root[data-theme="dark"] .bg-white { background-color: #172231; }
+  :root[data-theme="dark"] .bg-slate-50,
+  :root[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: #1c2a3b; }
+  :root[data-theme="dark"] .bg-slate-100 { background-color: #243246; }
+  :root[data-theme="dark"] .text-slate-600,
+  :root[data-theme="dark"] .text-slate-700 { color: #c3cfdc; }
+  :root[data-theme="dark"] .text-brand,
+  :root[data-theme="dark"] .text-brand-dark { color: #5eead4; }
+  :root[data-theme="dark"] .skeleton {
+    background: linear-gradient(90deg, #1c2a3b 25%, #243246 50%, #1c2a3b 75%);
+    background-size: 200% 100%;
+  }
+}

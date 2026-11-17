@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "./client";
-import type { Estimate, EstimateRequest, Municipality, ParseResult, SearchItem } from "./types";
+import type { Estimate, EstimateRequest, Municipality, ParseResult, QaResult, SearchItem } from "./types";
 
 export function useMunicipalities() {
   return useQuery<Municipality[], ApiError>({
@@ -53,5 +53,11 @@ export function useSendFeedback(publicId: string) {
   >({
     mutationFn: async (body) =>
       (await api.post(`/api/v1/estimates/${encodeURIComponent(publicId)}/feedback`, body)).data,
+  });
+}
+
+export function useAskProcedure() {
+  return useMutation<QaResult, ApiError, { municipality_code: string; question: string }>({
+    mutationFn: async (body) => (await api.post<QaResult>("/api/v1/qa", body)).data,
   });
 }

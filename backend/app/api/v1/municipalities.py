@@ -4,6 +4,7 @@ from sqlalchemy.engine import Connection
 
 from app.core.database import get_db
 from app.core.license_gate import is_allowed
+from app.core.license_info import get_license
 
 router = APIRouter()
 
@@ -28,5 +29,6 @@ def list_municipalities(conn: Connection = Depends(get_db)):
             "data_base_date": r["data_base_date"].isoformat() if r["data_base_date"] else None,
             "legal_effective_date": r["legal_effective_date"].isoformat() if r["legal_effective_date"] else None,
             "item_count": r["item_count"],
+            "license": get_license(r["code"]),
         })
     return {"items": items}

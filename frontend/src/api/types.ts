@@ -1,5 +1,15 @@
 export type FeeType = "paid" | "free" | "exempt";
 
+export interface License {
+  status: "confirmed" | "restricted" | "unverified";
+  kogl_type: number | null;
+  label: string;
+  summary: string;
+  source_name: string;
+  source_url: string | null;
+  checked_at: string | null;
+}
+
 export interface Municipality {
   code: string;
   name: string;
@@ -9,6 +19,7 @@ export interface Municipality {
   data_base_date: string | null;
   legal_effective_date: string | null;
   item_count: number;
+  license?: License;
 }
 
 export interface SearchItem {
@@ -91,4 +102,12 @@ export interface EstimateRequest {
   municipality_code: string;
   input_text?: string;
   lines: { raw_text?: string; item_id: number; quantity: number; operator_fee_won?: number }[];
+}
+
+export interface QaResult {
+  answerable: boolean;
+  answer: string;
+  citations: Citation[];
+  data_base_date: string | null;
+  disclaimer: string;
 }

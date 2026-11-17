@@ -5,6 +5,8 @@ import { feeLabel, SPEC_MISSING } from "../lib/format";
 import { MAX_LINES, useDraftStore } from "../store/draftStore";
 import { Badge, Banner, Button, Card, ErrorBox } from "./ui";
 
+const EXAMPLE_TEXT = "3인용 소파, 책상, 의자 4개";
+
 /** 문장 입력 → 줄별 후보 확인 → 담기. 서버는 후보만 제안하고, 담기는 사용자가 확정한다. */
 export default function TextParse() {
   const code = useDraftStore((s) => s.municipalityCode);
@@ -54,7 +56,12 @@ export default function TextParse() {
         placeholder="3인용 소파, 책상, 의자 4개"
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-muted">{text.length}/500</span>
+        <span className="flex items-center gap-2 text-xs text-muted">
+          {text.length}/500
+          <Button variant="ghost" onClick={() => setText(EXAMPLE_TEXT)} disabled={parse.isPending}>
+            예시 넣기
+          </Button>
+        </span>
         <Button onClick={analyze} disabled={!text.trim() || parse.isPending}>
           {parse.isPending ? "분석 중…" : "분석하기"}
         </Button>
