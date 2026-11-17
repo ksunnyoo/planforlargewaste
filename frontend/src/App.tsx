@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Link, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import { Button } from "./components/ui";
+import EvaluationPage from "./pages/EvaluationPage";
 import InputPage from "./pages/InputPage";
 import ResultPage from "./pages/ResultPage";
 
@@ -27,6 +28,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<InputPage />} />
             <Route path="/result/:publicId" element={<ResultPage readOnly={false} />} />
+            <Route path="/evaluation" element={<EvaluationPage />} />
             <Route path="/s/:publicId" element={<ResultPage readOnly />} />
             <Route path="*" element={<NotFound />} />
           </Route>

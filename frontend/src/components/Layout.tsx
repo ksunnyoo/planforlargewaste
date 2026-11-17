@@ -38,6 +38,7 @@ export default function Layout() {
               대형폐기물 배출 플래너
             </Link>
             <p className="text-xs text-muted">수수료 계산과 배출 절차를 한 화면에서 확인하십시오.</p>
+            <Link to="/evaluation" className="text-xs font-semibold text-brand-dark underline">평가 결과 보기</Link>
           </div>
           <ThemeToggle />
         </div>
